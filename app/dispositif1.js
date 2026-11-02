@@ -16,6 +16,7 @@
      -> carte vers le labo -> labo stade 2 -> fin du chapitre. État dans localStorage (clés taama.*), reprise de partie incluse.
    ========================================================== */
 import * as THREE from 'three';
+import { mediaUrl } from './device-quality.js?v=5';
 
 const M = window.MosqueScene;
 const POS = new THREE.Vector3(-10.0, 15.3, 15.0);         // repère du jeu (x nord, z est) : SUR LE TOIT de la Grande Mosquée (emplacement d'origine, côté façade à minarets)
@@ -112,7 +113,7 @@ const PROJ_VIDEO = 'assets/videos/intro-drone format pc.mp4';
 const PROJ_MS = 5000;
 function showProjection(done) {
   const vid = document.createElement('video');
-  vid.src = PROJ_VIDEO; vid.muted = true; vid.playsInline = true; vid.loop = true; vid.preload = 'auto'; vid.crossOrigin = 'anonymous';
+  vid.src = mediaUrl('introVideo'); vid.muted = true; vid.playsInline = true; vid.loop = true; vid.preload = 'auto'; vid.crossOrigin = 'anonymous';
   const tex = new THREE.VideoTexture(vid); tex.colorSpace = THREE.SRGBColorSpace;
   const mat = new THREE.MeshBasicMaterial({ map: tex, color: 0x9fe8ff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false });
   const m = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.8), mat); m.renderOrder = 6; m.raycast = () => {}; m.frustumCulled = false;
@@ -149,7 +150,6 @@ function badge(n, text) {
     document.body.appendChild(d); S.badge = d;
   }
   if (S.badge.querySelector('[data-n="' + n + '"]')) return;
-  window.Sfx?.play('badge');
   const b = document.createElement('div'); b.dataset.n = n;
   b.style.cssText = 'padding:7px 14px;border-radius:14px;background:rgba(45,40,34,.88);border:1px solid rgba(160,230,255,.85);color:#eef8ff;font:700 14px "Open Sans",system-ui,sans-serif;' +
     'box-shadow:0 0 16px rgba(102,232,255,.4);opacity:0;transform:translateY(-8px);transition:opacity .4s,transform .4s';
@@ -206,10 +206,17 @@ function radioThen(opts, cb) {
 }
 
 /* Écran plein (labo, dossier) : le jeu 3D est gelé (sanctuary-mode.js : __storyFreeze), plus de manette, plus de carte */
+let dayWasRunning = false;
 function freeze(on) {
   if (on) { try { window.CityMap?.close?.(); } catch (_) {} try { document.exitPointerLock?.(); } catch (_) {} }
   window.__storyFreeze = !!on;
   window.GamepadKit?.capture?.(!!on);
+  // le monde reste EXACTEMENT comme le joueur l'a laissé : heure du jour figée, voiture muette (position / conduite conservées), rien n'est déplacé
+  try {
+    const D = window.DayCycle;
+    if (on) { dayWasRunning = !!(D && D.running); D?.pause?.(); } else if (dayWasRunning) { D?.resume?.(); dayWasRunning = false; }
+    window.Vehicle?.pause?.(on);
+  } catch (_) {}
 }
 let veilEl = null;                                                   // fondu au noir (transition vers / depuis le labo)
 function veil(on, ms = 550) {
@@ -222,17 +229,6 @@ function openMapTo(id) {
   const CM = window.CityMap; if (!CM) return;
   if (CM.openTo) CM.openTo(id); else { CM.open(); CM.selectPlace(id); }
 }
-function faceTo(x, z, tx, tz) { return Math.atan2(tx - x, tz - z); }
-/* pose le joueur à pied en (px, pz) et gare la voiture en `car` ; le sol est lu sous la voiture garée */
-function placeScene(px, pz, yaw, car) {
-  const V = window.Vehicle, sm = window.SanctuaryMode, api = sm && sm.vehicle;
-  if (!sm || !api) return;
-  if (V && car) V.park(car.x, car.z, car.yaw, car.y);
-  const gy = V && V.loaded ? V.ground : (sm.playerPosition() ? sm.playerPosition().y - api.eyeHeight : 5);
-  sm.debugTeleport(px, gy + api.eyeHeight, pz);
-  api.setYaw(yaw); api.setCameraYaw(yaw); api.snapCamera(); api.sync();
-}
-
 /* S3/S4 — entrée dans le cercle jaune : fondu, gel du jeu, scène du labo (Lab.open) */
 function tryEnterLab() {
   S.circleLock = true;                                               // pas de re-déclenchement tant que le joueur n'a pas quitté le cercle de 6 m
@@ -245,7 +241,6 @@ function enterLab(stage) {
   emit(stage === 2 ? 'taama:arrive-labo2' : 'taama:arrive-labo');
   lsSet(stage === 2 ? LAB2 : LAB1, 'open');
   veil(true).then(() => {
-    try { window.Vehicle?.release?.(); } catch (_) {}
     freeze(true);
     const done = () => leaveLab(stage);
     if (window.Lab?.open) {
@@ -258,14 +253,13 @@ function enterLab(stage) {
 function leaveLab(stage) {
   if (S.leaving) return; S.leaving = true;
   veil(true, 150).then(() => {
-    if (stage === 1) {                                               // réapparition SUR le cercle jaune, pick-up garé à côté
+    // le joueur retrouve le jeu comme il l'a laissé : même position, même voiture, même heure (aucune téléportation ni déplacement de la voiture)
+    if (stage === 1) {
       lsSet(LAB1, 'done'); lsSet('taama.piste', '1'); lsSet(ACTE, '2:fin');
       seq(5, 6); emit('dispositif1:piste');
-      placeScene(CIRCLE.x, CIRCLE.z, faceTo(CIRCLE.x, CIRCLE.z, REV_SPOT.x, REV_SPOT.z), { x: CIRCLE.x - 5.5, z: CIRCLE.z + 1.5, yaw: Math.PI / 2, y: 5.3 });
-    } else {                                                         // fin du chapitre : retour près de la mosquée
+    } else {
       lsSet(LAB2, 'done'); lsSet(REV_KEY, '1'); lsSet('taama.chapitre1', 'done'); lsSet('taama.next', 'bandiagara');
       seq(11, 13); emit('taama:chapitre1-fin');
-      placeScene(-27.602, 36.228, Math.PI, { x: -21.5, z: 47.0, yaw: Math.PI * 0.5, y: 2.4 });
     }
     freeze(false); S.labBusy = false; S.leaving = false;
     veil(false, 700);

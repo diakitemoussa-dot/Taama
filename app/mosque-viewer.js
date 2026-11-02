@@ -13,8 +13,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { TileStreamer } from './spatial-streaming.js?v=2';
-import { detectQuality, QUALITY_PRESETS } from './device-quality.js?v=2';
+import { TileStreamer } from './spatial-streaming.js?v=3';
+import { detectQuality, QUALITY_PRESETS, createDynamicRes, currentBytesPlan } from './device-quality.js?v=5';
 
 const canvas    = document.getElementById('mosqueCanvas');
 const stage     = document.getElementById('mosqueStage');
@@ -36,7 +36,10 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 // Rendu fidèle aux couleurs (comme l'aperçu Blender) — ACES assombrissait trop l'argile
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.shadowMap.enabled = QUALITY_PRESET.shadows;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// filtre des ombres selon le palier (PC : PCFSoft comme avant ; mobile : filtre plus léger)
+renderer.shadowMap.type = { basic: THREE.BasicShadowMap, pcf: THREE.PCFShadowMap, pcfsoft: THREE.PCFSoftShadowMap }[QUALITY_PRESET.shadowType] || THREE.PCFSoftShadowMap;
+// résolution dynamique (mobile seulement) : baisse d'un cran si < 40 fps pendant 2 s, remonte si stable
+const dynRes = createDynamicRes({ min: QUALITY_PRESET.minPixelRatio, max: Math.min(window.devicePixelRatio, QUALITY_PRESET.maxPixelRatio) });
 
 /* ---------- Scène + fog atmosphérique ---------- */
 const scene = new THREE.Scene();
@@ -136,7 +139,7 @@ function renderSelectiveBloom(){
 const sun = new THREE.DirectionalLight(0xffb877, 1.3);   // lumière dorée, soleil bas
 sun.position.set(-245, 74, -245);                         // aligné sur le soleil du ciel (sky.js)
 sun.castShadow = true;
-sun.shadow.mapSize.set(4096, 4096);
+sun.shadow.mapSize.set(QUALITY_PRESET.shadowSize, QUALITY_PRESET.shadowSize);   // PC : 4096 comme avant
 sun.shadow.camera.near   =   1;
 sun.shadow.camera.far    = 700;
 sun.shadow.camera.left   = -320;
@@ -435,6 +438,25 @@ const TILES_INDEX_URL = `assets/models/${QUALITY_PRESET.tilesDir}/index.json?v=1
 const URL_PARAMS = new URLSearchParams(location.search);
 const USE_TILES = URL_PARAMS.get('tiles') !== '0';
 let tileStreamer = null;
+/* Budget de streaming = palier appareil (rayons, requêtes) x palier réseau (rayon réduit, octets/s). PC + bon réseau : valeurs d'origine. */
+function tileOptions() {
+  const pl = currentBytesPlan();
+  return {
+    loadRadius: QUALITY_PRESET.tileLoad * pl.radiusFactor,
+    unloadRadius: QUALITY_PRESET.tileUnload * pl.radiusFactor,
+    nearRadius: 120 * pl.radiusFactor,
+    maxConcurrent: pl.concurrent,
+    bytesPerSec: pl.bytesPerSec,
+  };
+}
+let _netToastDone = false;
+window.addEventListener('quality:net', (e) => {                  // le réseau change en cours de partie : le streaming s'adapte
+  if (tileStreamer && tileStreamer.setBudget) tileStreamer.setBudget(tileOptions());
+  if (e.detail && e.detail.net === 'slow' && !_netToastDone && loaded) {
+    _netToastDone = true;
+    toast('Connexion lente : qualité réduite pour économiser tes données. Réglable dans Options › Affichage.');
+  }
+});
 // Ville v2 : seulement avec les tuiles (le GLB monolithique contient déjà l'ancienne ville)
 const NEW_CITY = USE_TILES && URL_PARAMS.get('oldcity') !== '1';
 
@@ -452,7 +474,7 @@ function loadMonolithicScene() {
    assets/models/djenne-ville-leger.glb : sol + relief + fleuve + maisons + arbres, déjà recalée dans le
    repère de la mosquée du jeu (voir djenne-ville-leger.INFO.md). Le cœur (mosquée, ciel, nuages) reste
    celui des tuiles ; les anciennes maisons ne sont plus chargées. ?oldcity=1 rétablit l'ancienne ville. */
-const CITY_URL = 'assets/models/djenne-ville-leger.glb?v=4';
+const CITY_URL = `assets/models/${currentBytesPlan().cityGlb}?v=4`;   // mobile / réseau lent : textures de la ville réduites de moitié
 let cityPromise = Promise.resolve(false);
 let newCityLoaded = false;
 let fogFarBase = 0;                  // portée de base de la brume (m), lue par daycycle.js
@@ -493,6 +515,7 @@ if (USE_TILES) {
     scene, camera, loader, renderer,
     indexUrl: TILES_INDEX_URL,
     alwaysOnly: NEW_CITY,
+    ...tileOptions(),
     hud: URL_PARAMS.has('streaming'),
     onProgress: (s) => {
       const pct = (s.bytes / (s.preloadBytes || s.bytesTotal || 1)) * 100;
@@ -584,6 +607,7 @@ let gameUpdate = null;   // fonction(dt) fournie par drone-game.js quand le mode
 const tick = () => {
   raf = requestAnimationFrame(tick);
   const dt = clock.getDelta();
+  { const pr = dynRes.update(dt); if (pr) { renderer.setPixelRatio(pr); bloomComposer.setPixelRatio(pr); finalComposer.setPixelRatio(pr); resize(); } }
 
   if (mixer) mixer.update(dt);                      // joue l'animation des nuages
   for (const fn of frameHooks){ try { fn(dt); } catch (_) {} }   // hooks externes (ciel, nuages…)
@@ -683,6 +707,7 @@ window.MosqueScene = {
   applyQuality(level){                  // Options › Qualité graphique (la résolution change tout de suite ; les tuiles au prochain lancement)
     const p = QUALITY_PRESETS[level] || QUALITY_PRESET;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, p.maxPixelRatio));
+    dynRes.reset(Math.min(window.devicePixelRatio, p.maxPixelRatio));
     resize();
     return p;
   },
@@ -1089,7 +1114,7 @@ if (btnInterior) btnInterior.addEventListener('click', () => {
 });
 
 if (btnAr) btnAr.addEventListener('click', () => {
-  import('./ar-mode.js?v=2').then(mod => mod.enter());
+  import('./ar-mode.js?v=3').then(mod => mod.enter());
 });
 
 if (btnMenu) btnMenu.addEventListener('click', (e) => {

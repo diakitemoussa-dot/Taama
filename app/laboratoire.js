@@ -26,6 +26,7 @@
    ========================================================== */
 
 import { fillName } from './player-profile.js';
+import { mediaUrl } from './device-quality.js?v=5';
 import { t, translateTree } from './i18n.js';
 
 /* ==========================================================
@@ -990,7 +991,7 @@ async function projection1() {
   ui.holo.hidden = false;
   ui.holo.className = 'lab-holo is-video';
   const v = ui.video;
-  v.src = new URL('../' + VIDEO_SRC.replace(/ /g, '%20'), import.meta.url).href;
+  v.src = new URL('../' + mediaUrl('introVideo').replace(/ /g, '%20'), import.meta.url).href;
   v.muted = true; v.playsInline = true; v.loop = true;
   try { v.currentTime = 2; } catch (e) { /* métadonnées pas prêtes */ }
   const playing = v.play();
@@ -1216,7 +1217,11 @@ function refocus() {
 /** Navigation spatiale à la croix directionnelle. */
 function padNav(dir) {
   const scope = !ui.history.hidden ? ui.history : root;
-  const cands = [...scope.querySelectorAll('button:not([disabled]), input:not([disabled])')].filter((n) => n.offsetParent !== null && !n.closest('[hidden]'));
+  let cands = [...scope.querySelectorAll('button:not([disabled]), input:not([disabled])')].filter((n) => n.offsetParent !== null && !n.closest('[hidden]'));
+  if (scope === root && S && S.phase === 'enigme') {            // pendant une énigme, la croix ne parcourt que le pavé, « valider » et « indice » (Relire = bouton Y)
+    const only = cands.filter((n) => n.classList.contains('lab-key') || n.classList.contains('lab-btn') && n !== (ui && ui.relire) || n.tagName === 'INPUT');
+    if (only.length) cands = only;
+  }
   if (!cands.length) return;
   const cur = document.activeElement && cands.includes(document.activeElement) ? document.activeElement : null;
   if (!cur) { (cands.find((n) => n.classList.contains('lab-key')) || cands[0]).focus(); return; }
@@ -1236,17 +1241,24 @@ function padNav(dir) {
   if (best) best.focus();
 }
 
+let stickDir = null, stickT = 0;
 function startPadLoop() {
   if (padLoopOn) return;
   padLoopOn = true;
   const loop = () => {
     if (!S || !S.open) { padLoopOn = false; return; }
     requestAnimationFrame(loop);
-    const p = window.GamepadKit;
+    const gk = window.GamepadKit;       // le labo gèle le monde (GamepadKit.capture) : on lit la manette en DIRECT (raw), sinon rien ne passe
+    const p = gk && { connected: () => gk.connected(), justPressed: (n) => (gk.raw || gk).justPressed(n) };
     if (!p || !p.connected() || locked() || tapamaBusy() || !ui) return;
     if (p.justPressed('Y')) { toggleHistory(); return; }
     if (!ui.history.hidden) { if (p.justPressed('A') || p.justPressed('B')) toggleHistory(); return; }
     for (const d of ['UP', 'DOWN', 'LEFT', 'RIGHT']) if (p.justPressed(d)) { padNav(d); return; }
+    // stick gauche : même navigation que la croix (un cran par bascule, répétition lente si maintenu)
+    const st = (gk.raw || gk).state(), now = performance.now();
+    const sd = Math.abs(st.lx) > 0.6 && Math.abs(st.lx) >= Math.abs(st.ly) ? (st.lx > 0 ? 'RIGHT' : 'LEFT') : Math.abs(st.ly) > 0.6 ? (st.ly > 0 ? 'DOWN' : 'UP') : null;
+    if (!sd) stickDir = null;
+    else if (sd !== stickDir || now - stickT > 320) { stickDir = sd; stickT = now; padNav(sd); return; }
     if (p.justPressed('A')) {
       const f = document.activeElement;
       if (f && f.closest && f.closest('#labRoot') && f.tagName === 'BUTTON') f.click();

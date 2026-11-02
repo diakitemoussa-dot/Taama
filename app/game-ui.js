@@ -23,7 +23,7 @@
 
 import { SCREENS } from './game-screens.js?v=9';
 import * as G from './game-save.js';
-import { detectQuality } from './device-quality.js?v=2';
+import { detectQuality, mediaUrl } from './device-quality.js?v=5';
 import * as P from './player-profile.js';
 import * as I18n from './i18n.js';
 import { t, translateTree } from './i18n.js';
@@ -382,6 +382,8 @@ const SWITCH_KEYS = {
   'Couper tous les sons': 'muteAll',
   'Plein écran': 'fullscreen',
   'Ombres portées': 'shadows',
+  'Adapter selon la connexion': 'netAdapt',
+  'Économiser mes données': 'saveData',
   'Afficher l’horloge du jeu (cycle jour et nuit)': 'showClock',
   'Afficher les aides de commandes à l’écran': 'showHints',
   'Afficher le compteur d’images par seconde': 'showFps',
@@ -459,7 +461,23 @@ function paintLangCards(root) {
   });
 }
 
+/* Options › Affichage : deux réglages réseau ajoutés sous « Ombres portées » (clonés de la ligne existante, sans toucher au design) */
+function injectNetRows(root) {
+  const rows = $$(root, '.row');
+  const sh = rows.find((r) => r.firstElementChild && norm(r.firstElementChild.textContent) === 'Ombres portées');
+  if (!sh || root.querySelector('[data-net-row]')) return;
+  let after = sh;
+  for (const label of ['Adapter selon la connexion', 'Économiser mes données']) {
+    const r = sh.cloneNode(true);
+    r.dataset.netRow = '1';
+    r.firstElementChild.textContent = label;
+    after.insertAdjacentElement('afterend', r);
+    after = r;
+  }
+}
+
 function initControls(root) {
+  injectNetRows(root);
   $$(root, '.trk').forEach((trk) => {
     const lab = trk.parentElement.querySelector('.lab');
     const key = lab && SLIDER_KEYS[norm(lab.textContent)];
@@ -534,6 +552,8 @@ function applyOne(key) {
       break;
     case 'muteAll': window.GameAudio?.set(settings); syncSoundButton(); break;
     case 'shadows': window.MosqueScene?.setShadows?.(settings.shadows); break;
+    case 'netAdapt': window.Quality?.adapt?.(settings.netAdapt); break;          // Adapter selon la connexion (réseau lent = moins d'octets)
+    case 'saveData': window.Quality?.saveData?.(settings.saveData); break;       // Économiser mes données : force le palier réseau lent
     case 'showHints': document.body.classList.toggle('gu-nohints', !settings.showHints); break;
     case 'textSize': applyTextSize(); break;
     case 'timeSpeed': window.DayCycle?.setSpeed?.(settings.timeSpeed); break;
@@ -575,7 +595,7 @@ function applyAll() {
   window.GameSettings = settings;
   document.documentElement.lang = settings.lang;
   // l'horloge et la vitesse du temps (DayCycle) sont appliquées au début de la partie
-  ['volume', 'showFps', 'highContrast', 'showHints', 'textSize'].forEach(applyOne);
+  ['volume', 'showFps', 'highContrast', 'showHints', 'textSize', 'netAdapt', 'saveData'].forEach(applyOne);
   if (settings.muteAll) setTimeout(syncSoundButton, 0);
 }
 
@@ -642,7 +662,7 @@ function act(name) {
     case 'reset-settings':
       settings = { ...G.DEFAULT_SETTINGS };
       persistSettings();
-      ['volume', 'muteAll', 'timeSpeed', 'showClock', 'showFps', 'highContrast', 'quality', 'lang'].forEach(applyOne);
+      ['volume', 'muteAll', 'timeSpeed', 'showClock', 'showFps', 'highContrast', 'quality', 'lang', 'netAdapt', 'saveData'].forEach(applyOne);
       return show(current.id);
     default: return undefined;
   }
@@ -852,7 +872,7 @@ function playCinematic(then) {
   const v = document.createElement('video');
   v.playsInline = true;
   v.preload = 'auto';
-  v.src = CINE_VIDEO;
+  v.src = mediaUrl('introVideo');   // mobile / réseau lent : version 960 px (2,3 Mo au lieu de 18,8 Mo)
   v.style.cssText = bg ? bg.getAttribute('style') : 'position:absolute;left:0;top:0;width:1440px;height:810px;object-fit:cover';
   v.volume = clamp((settings.muteAll ? 0 : settings.volume / 100), 0, 1);
   if (bg) bg.replaceWith(v); else r.firstElementChild.prepend(v);
@@ -944,7 +964,7 @@ function enterGame(opts = {}) {
     if (!inGame) return;
     if (window.MosqueScene && window.MosqueScene.loaded && window.SanctuaryMode) {
       document.querySelector('[data-action="interior"]')?.click();
-      if (opts.takeoff) takeoffWhenReady();
+      if (opts.takeoff) hintDroneLaunch();
     }
     else setTimeout(goSanctuary, 400);
   };
@@ -956,7 +976,14 @@ function enterGame(opts = {}) {
   startPlayClock();
 }
 
-/* Scène 1 : le personnage est entré dans le sanctuaire (devant la mosquée) ; dès qu'il est prêt, le drone décolle de son sac et le joueur le pilote. */
+/* Scène 1 : le personnage est dans le sanctuaire (devant la mosquée). Le drone NE décolle PAS tout seul : le joueur le lance lui-même
+   (R au clavier, LB à la manette, bouton Drone sur mobile) ; une aide discrète le lui rappelle une fois la scène prête. */
+function hintDroneLaunch(tries = 0) {
+  if (!inGame || window.__storyFreeze) return;
+  const sm = window.SanctuaryMode, d = sm && sm.debug ? sm.debug() : null;
+  if (d && d.active && d.ready && d.state === 3 && !window.Tapama?.isBusy?.()) { window.GamepadKit?.toast?.('🚁 Lance ton drone : touche R · LB à la manette · bouton Drone sur mobile'); return; }
+  if (tries < 120) setTimeout(() => hintDroneLaunch(tries + 1), 500);
+}
 function takeoffWhenReady(tries = 0) {
   if (!inGame || window.__storyFreeze || window.Dispositif1?.busy) return;
   try { const ac = localStorage.getItem('taama.acte'); if (ac && ac !== '0:done') return; } catch (_) {}

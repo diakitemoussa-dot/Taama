@@ -29,7 +29,7 @@
   const loadModelSound = () => {
     if (modelSound) return;
     modelSound = new Audio('assets/audio/model-sound.mp3');
-    modelSound.preload = 'auto';
+    modelSound.preload = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 'none' : 'auto';   // mobile : chargé à la première lecture
   };
   loadModelSound();
   const playModelSound = () => {
@@ -432,8 +432,10 @@
       video.load();
     }
   };
-  preloadVideo();
-  window.addEventListener('resize', () => { updateMode(); preloadVideo(); });
+  // mobile : pas de préchargement de la vidéo d'intro (elle se charge au décollage)
+  const _lite = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  if (!_lite) preloadVideo();
+  window.addEventListener('resize', () => { updateMode(); if (!_lite) preloadVideo(); });
 
   /* ==========================================================
      SÉQUENCE DE DÉCOLLAGE + VIDÉO

@@ -47,6 +47,8 @@ export class TileStreamer {
     this.nearRadius = opts.nearRadius ?? 120;
     this.maxConcurrent = opts.maxConcurrent ?? 6;
     this.interval = opts.interval ?? 0.2;
+    this.bytesPerSec = opts.bytesPerSec ?? 0;      // budget d'octets par seconde (0 = illimité)
+    this._credit = 0; this._lastCredit = 0;
     this.onProgress = opts.onProgress || null;
     this.renderer = opts.renderer || null;
     this.hud = !!opts.hud;
@@ -117,6 +119,16 @@ export class TileStreamer {
     this._updateHud(dt);
   }
 
+  /** Réglages dynamiques (réseau qui change) : rayons, requêtes simultanées, octets/s. */
+  setBudget(o = {}) {
+    if (o.loadRadius != null) this.loadRadius = o.loadRadius;
+    if (o.unloadRadius != null) this.unloadRadius = o.unloadRadius;
+    if (o.nearRadius != null) this.nearRadius = o.nearRadius;
+    if (o.maxConcurrent != null) this.maxConcurrent = o.maxConcurrent;
+    if (o.bytesPerSec != null) this.bytesPerSec = o.bytesPerSec;
+    this._credit = 0; this._lastCredit = performance.now();
+  }
+
   /** Force une évaluation immédiate (après un saut de caméra par exemple). */
   refresh() {
     this._refresh();
@@ -150,8 +162,13 @@ export class TileStreamer {
     }
 
     pending.sort((a, b) => a.dist - b.dist);
+    // budget d'octets : un « crédit » qui se recharge à bytesPerSec ; une tuile ne démarre que si le crédit est positif
+    const now = performance.now();
+    if (this.bytesPerSec > 0) this._credit = Math.min(this._credit + this.bytesPerSec * Math.min(2, (now - (this._lastCredit || now)) / 1000), this.bytesPerSec * 3);
+    this._lastCredit = now;
     for (const t of pending) {
       if (this.loading >= this.maxConcurrent) break;
+      if (this.bytesPerSec > 0) { if (this._credit <= 0) break; this._credit -= t.bytes || 0; }
       this._loadTile(t);
     }
     if (pending.length) this._emit();

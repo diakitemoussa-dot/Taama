@@ -3,6 +3,7 @@
    Dépend de window.MosqueScene exposé par mosque-viewer.js.
    ========================================================== */
 import * as THREE from 'three';
+import { mediaUrl, currentBytesPlan } from './device-quality.js?v=5';
 import { t as _t } from './i18n.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
@@ -29,8 +30,8 @@ document.addEventListener('audioUnlock', () => {
 }, { once: true });
 
 /* Son drone part — joué 30s après le début du jeu */
-const _dronePart = new Audio('assets/audio/sound_for_drone_part.mp3');
-_dronePart.preload = 'auto';
+const _dronePart = new Audio(mediaUrl('dronePart'));       // mobile : version allégée (0,7 Mo au lieu de 4,7 Mo)
+_dronePart.preload = currentBytesPlan().deferHeavyAudio ? 'none' : 'auto';   // mobile / réseau lent : chargé au premier vol
 window.GameAudio?.track(_dronePart, 'drone');
 let _dronePartTimer = null;
 

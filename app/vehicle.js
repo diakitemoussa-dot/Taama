@@ -213,7 +213,7 @@ function load() {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: rtex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
       sp.scale.setScalar(0.8); sp.position.set(0, -0.25, -0.2); a.add(sp); car.revGlow.push(sp);
     }
-    car.revLight = new THREE.PointLight(0xe8f0ff, 0, 9, 2); car.revLight.position.set(0, 1.24, -3.4); g.add(car.revLight);
+    // (pas de PointLight de recul ni de tableau de bord : chaque lumière ponctuelle coûte à CHAQUE pixel de la scène ; les matériaux émissifs suffisent)
     const ttex = new THREE.CanvasTexture(tl); car.tailGlow = [];
     for (const n of ['Feu_G', 'Feu_D']) {
       const a = car.anchors[n]; if (!a) continue;
@@ -221,24 +221,24 @@ function load() {
       sp.scale.setScalar(1.0); sp.position.set(0, 0, -0.15); a.add(sp); car.tailGlow.push(sp);
     }
     // éclairage intérieur : plafonnier chaud + lueur verte du tableau de bord
-    car.dome = new THREE.PointLight(0xffe0a8, 0, 5.5, 1.6); car.dome.position.set(0, 2.07, 0.1); g.add(car.dome);
-    car.dash = new THREE.PointLight(0x66ffcc, 0, 1.8, 2); car.dash.position.set(0.44, 1.52, 0.95); g.add(car.dash);
+    const REAL_HEADLIGHTS = !window.Quality || window.Quality.preset.headlights !== false;   // palier économique : cônes émissifs seulement (une lumière de moins = shaders plus légers)
+    car.dome = new THREE.PointLight(0xffe0a8, 0, 5.5, 1.6); car.dome.position.set(0, 2.07, 0.1); car.dome.visible = REAL_HEADLIGHTS; g.add(car.dome);
     // phares : deux vraies lumières (nombre constant)
     for (const n of ['Phare_G', 'Phare_D']) {
-      const L = new THREE.SpotLight(0xfff0d0, 0, 95, 0.52, 0.55, 1.2); L.castShadow = false;
+      const L = new THREE.SpotLight(0xfff0d0, 0, 95, 0.52, 0.55, 1.2); L.castShadow = false; L.visible = REAL_HEADLIGHTS;
       const tgt = new THREE.Object3D(); M.scene.add(L); M.scene.add(tgt); L.target = tgt;
       // (spot et cible en coordonnées monde : pas enfants de la voiture)
       car.lights.push({ L, tgt, anchor: car.anchors[n] });
     }
     // poussière : petit nuage de points
-    const N = 36, geo = new THREE.BufferGeometry();
+    const N = 72, geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
     const c = document.createElement('canvas'); c.width = c.height = 32; const cx = c.getContext('2d');
     const gr = cx.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(190,150,100,.55)'); gr.addColorStop(1, 'rgba(190,150,100,0)');
     cx.fillStyle = gr; cx.fillRect(0, 0, 32, 32);
     const mat = new THREE.PointsMaterial({ map: new THREE.CanvasTexture(c), size: 2.2, transparent: true, depthWrite: false, opacity: 0.8, sizeAttenuation: true });
     const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; pts.raycast = () => {}; M.scene.add(pts);
-    car.dust = { pts, N, life: new Float32Array(N).fill(0), vel: Array.from({ length: N }, () => new THREE.Vector3()), i: 0 };
+    car.dust = { pts, N, life: new Float32Array(N).fill(0), vel: Array.from({ length: N }, () => new THREE.Vector3()), i: 0, acc: 0 };
     place(PARK.x, PARK.z, PARK.yaw, true); loadClips();
     console.log('[Voiture] pick-up chargé');
   }, undefined, (e) => console.warn('[Voiture] indisponible :', e));
@@ -246,14 +246,48 @@ function load() {
 
 /* sol sous (x, z) : le rayon ne porte que 12 m, on l'essaie donc depuis plusieurs hauteurs (indice, hauteur actuelle, paliers du terrain) */
 function findGround(x, z, hint) {
+  const ref = S.parkHint != null && S.parkAt && Math.hypot(x - S.parkAt.x, z - S.parkAt.z) < 3 ? S.parkHint : null;          // hauteur connue du lieu : un « sol » trop éloigné de cette hauteur (toit, plan bas) est refusé
   for (const y of [hint, pos.y, 5, 0, 12, 25, 45]) {
     if (y == null || !isFinite(y)) continue;
-    const g = groundAt(x, y, z); if (g !== null) return g;
+    const g = groundAt(x, y, z);
+    if (g !== null && (ref === null || Math.abs(g - ref) <= 2.5)) return g;
   }
   return null;
 }
+/* place libre autour d'un point (cx, cz) : sol trouvé à la bonne hauteur sous les 5 points de l'emprise, aucun mur entre le point et la voiture ;
+   renvoie { x, z, yaw } ou null (sol pas chargé : l'appelant se rabat sur un emplacement fixe) */
+function freeSpotNear(cx, cz, yRef) {
+  const cols = envColliders(); if (!cols || !cols.length) return null;
+  const solid = cols.filter((o) => !/^Sol_/.test(o.name));
+  const wall = (ax, az, bx, bz, h) => {                       // un obstacle (hors terrain) sur le segment A→B à hauteur h ?
+    const dx = bx - ax, dz = bz - az, L = Math.hypot(dx, dz); if (L < 0.01) return false;
+    rc.set(_v.set(ax, yRef + h, az), _w.set(dx / L, 0, dz / L)); rc.near = 0; rc.far = L;
+    return rc.intersectObjects(solid, false).length > 0;
+  };
+  const g0 = findGroundNear(cx, cz, yRef); if (g0 === null) return null;
+  for (const r of [5.5, 7, 4.5, 8.5]) {
+    for (let k = 0; k < 12; k++) {
+      const a = Math.PI + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (Math.PI / 6);     // d'abord à l'ouest, puis de part et d'autre
+      const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r, yaw = a + Math.PI / 2;
+      const ax = Math.sin(yaw), az = Math.cos(yaw), lx = az, lz = -ax;                // avant / côté de la voiture
+      const pts = [[0, 0], [2.2, 0], [-2.2, 0], [0, 1.1], [0, -1.1]].map(([f, s2]) => [x + ax * f + lx * s2, z + az * f + lz * s2]);
+      let ok = true;
+      for (const [px, pz] of pts) {
+        const g = findGroundNear(px, pz, yRef);
+        if (g === null || Math.abs(g - g0) > 0.7 || wall(cx, cz, px, pz, 0.8) || wall(cx, cz, px, pz, 1.6)) { ok = false; break; }
+      }
+      if (ok) return { x, z, yaw };
+    }
+  }
+  return null;
+}
+function findGroundNear(x, z, yRef) {
+  for (const y of [yRef, yRef + 2, yRef - 2]) { const g = groundAt(x, y, z); if (g !== null && Math.abs(g - yRef) <= 3) return g; }
+  return null;
+}
 function place(x, z, yaw, snapGround, yHint) {
-  pos.x = x; pos.z = z; S.yaw = yaw;
+  pos.x = x; pos.z = z; S.yaw = yaw; S.parkHint = yHint != null ? yHint : null; S.parkAt = { x, z };
+  S.pitch = 0; S.roll = 0; dustClear();
   const gy = findGround(x, z, yHint);
   if (gy !== null) { pos.y = gy; S.pendingGround = false; }
   else { if (yHint != null) pos.y = yHint; S.pendingGround = true; }     // sol pas encore chargé (tuiles) : on recolle dès qu'il apparaît
@@ -650,7 +684,7 @@ function drive(dt) {
   const mixer = SM().mixer(); if (mixer) mixer.update(dt);
   chaseCamera(dt, 1);
   prompt(true, drivingHint());
-  dustTick(dt, !onPlatform() && Math.abs(S.speed) > 3.5 ? Math.min(1, (Math.abs(S.speed) - 3.5) / 8) : 0);
+  dustTick(dt, !onPlatform() && Math.abs(S.speed) > 1.5 ? Math.min(1, (Math.abs(S.speed) - 1.5) / 7) : 0);
   engineUpdate(true);
 }
 
@@ -660,22 +694,32 @@ function onPlatform() {            // sur la dalle de la base NÉANTIS : pas de 
   const c = nb.center; return Math.hypot(pos.x - c.x, pos.z - c.z) < 108;
 }
 const _dp = new THREE.Vector3();
+function dustClear() {
+  const d = car.dust; if (!d) return;
+  const arr = d.pts.geometry.attributes.position.array;
+  for (let i = 0; i < d.N; i++) { d.life[i] = 0; arr[i * 3 + 1] = -9999; }
+  d.pts.geometry.attributes.position.needsUpdate = true;
+}
 function dustTick(dt, amount) {
   const d = car.dust; if (!d) return;
   const arr = d.pts.geometry.attributes.position.array;
-  if (amount > 0.02 && Math.random() < amount * 0.9) {
-    for (const n of ['Poussiere_ArG', 'Poussiere_ArD']) {
-      const a = car.anchors[n]; if (!a) continue; a.getWorldPosition(_dp);
+  // émission régulière derrière les roues arrière (cadence indépendante du framerate) : le nuage suit la voiture et s'étire dans son sillage
+  if (amount > 0.02) {
+    d.acc += dt * (14 + 46 * amount);
+    const fx = Math.sin(S.yaw), fz = Math.cos(S.yaw);
+    while (d.acc >= 1) {
+      d.acc -= 1;
+      const a = car.anchors[(d.i & 1) ? 'Poussiere_ArG' : 'Poussiere_ArD']; if (!a) continue; a.getWorldPosition(_dp);
       const i = d.i; d.i = (d.i + 1) % d.N; d.life[i] = 1;
-      arr[i * 3] = _dp.x; arr[i * 3 + 1] = _dp.y + 0.1; arr[i * 3 + 2] = _dp.z;
-      d.vel[i].set((Math.random() - 0.5) * 0.8 - Math.sin(S.yaw) * S.speed * 0.15, 0.6 + Math.random() * 0.5, (Math.random() - 0.5) * 0.8 - Math.cos(S.yaw) * S.speed * 0.15);
+      arr[i * 3] = _dp.x + (Math.random() - 0.5) * 0.3; arr[i * 3 + 1] = _dp.y + 0.1; arr[i * 3 + 2] = _dp.z + (Math.random() - 0.5) * 0.3;
+      d.vel[i].set((Math.random() - 0.5) * 0.9 - fx * S.speed * 0.12, 0.5 + Math.random() * 0.6, (Math.random() - 0.5) * 0.9 - fz * S.speed * 0.12);
     }
-  }
+  } else d.acc = 0;
   for (let i = 0; i < d.N; i++) {
     if (d.life[i] <= 0) { arr[i * 3 + 1] = -9999; continue; }
-    d.life[i] -= dt * 0.9;
+    d.life[i] -= dt * 0.8;
     arr[i * 3] += d.vel[i].x * dt; arr[i * 3 + 1] += d.vel[i].y * dt; arr[i * 3 + 2] += d.vel[i].z * dt;
-    d.vel[i].multiplyScalar(1 - dt * 1.2);
+    d.vel[i].multiplyScalar(1 - dt * 1.4);
   }
   d.pts.geometry.attributes.position.needsUpdate = true;
   d.pts.material.opacity = 0.7;
@@ -726,7 +770,10 @@ const controller = {
   active() { return car.loaded && S.st !== ST.PARKED; },
   tick(dt) {
     if (!window.SanctuaryMode.isActive()) { reset(); return; }
-    if (S.pendingGround && S.st === ST.PARKED) { const g = findGround(pos.x, pos.z, pos.y); if (g !== null) { pos.y = g; S.pendingGround = false; applyTransform(); } }
+    if (S.st === ST.PARKED && car.loaded && ((S._gt = (S._gt || 0) + dt) > 0.5)) {   // garée : on recolle au sol (tuiles chargées après coup, terrain corrigé)
+      S._gt = 0; const g = findGround(pos.x, pos.z, S.parkHint != null && S.parkAt && Math.hypot(pos.x - S.parkAt.x, pos.z - S.parkAt.z) < 3 ? S.parkHint : pos.y);
+      if (g !== null && Math.abs(g - pos.y) > 0.12) { pos.y = g; S.pendingGround = false; applyTransform(); }
+    }
     if (S.st === ST.DRIVE) drive(dt); else tickSequence(dt);
   },
 };
@@ -736,7 +783,7 @@ function reset() {
   try { if (SM()) gadgetShow(true); } catch (_) {}
   if (S.acts && SM()) { try { SM().resetActions(); } catch (_) {} S.acts = null; }
   S.camMode = 0; S.camT = 0;
-  S.st = ST.PARKED; S.doorAmt = 0; S.speed = 0; window.__vehicleBusy = false; engineUpdate(false);
+  S.st = ST.PARKED; S.doorAmt = 0; S.speed = 0; S.held = {}; S.down = {}; window.__vehicleBusy = false; engineUpdate(false); dustClear();   // touches relâchées + poussière effacée : rien ne reste figé après une sortie brutale (labo)
   const r = SM() && SM().root(); if (r) r.visible = true;
 }
 
@@ -791,8 +838,10 @@ window.Vehicle = {
   get speed() { return S.speed; },
   get yaw() { return S.yaw; },
   park(x, z, yaw, yHint) { place(x, z, yaw, true, yHint); },
+  parkNear(cx, cz, yRef, fb) { const f = freeSpotNear(cx, cz, yRef) || fb; if (f) place(f.x, f.z, f.yaw, true, yRef); return !!f; },     // gare la voiture sur une place libre près de (cx, cz) ; fb = emplacement de secours
   enter() { if (car.loaded && S.st === ST.PARKED) startEnter(); },
   exit() { if (S.st === ST.DRIVE) startExit(); },
+  pause(on) { if (on) { S.speed = 0; engineUpdate(false); dustClear(); S.held = {}; } },   // monde gelé (labo, dossier) : moteur coupé, touches relâchées ; la conduite reprend ensuite telle quelle
   release() { if (S.st !== ST.PARKED) reset(); },     // sort aussitôt du véhicule (scène de labo, S4) : la voiture reste où elle est
   get ground() { return pos.y; },
   group: () => car.group,

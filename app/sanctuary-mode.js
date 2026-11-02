@@ -195,7 +195,6 @@ document.addEventListener('audioUnlock', () => {
 let _walkPlaying = false;
 const _startWalk = () => {
   if (_walkPlaying) return;
-  if (window.Sfx?.ownsSteps?.()) return;                  // pas synthétisés (selon le sol) : la boucle mp3 reste en secours
   _walkPlaying = true;
   _walkSound.play().catch(() => {});
 };
@@ -228,7 +227,6 @@ const _stopInsideSound = () => {
 };
 // L'ambiance intérieure ne doit être audible que sous le toit de la mosquée.
 const _syncInsideSound = (inside) => {
-  window.Sfx?.setZone?.(inside ? 'mosquee' : null);       // sol de la mosquée pour les pas synthétisés
   if (inside) _playInsideSound();
   else _stopInsideSound();
 };
@@ -2820,7 +2818,6 @@ function _destroyDroneN() {
   // étincelles et débris remplacent la chute + explosion du drone.
   _spawnDroneNExplosion(_gadgetAim);
   _playExplosionSound();
-  window.Sfx?.play('drone-neutralise');
   _triggerCameraShake(0.45, 0.12);
   _updateGadgetHud();
   window.GamepadKit?.toast?.('💥 Drone hostile détruit');
@@ -3348,7 +3345,6 @@ function _updateSanctuaryDroneN(dt, passive = false) {
   if (out.changed && out.state === DroneAI.AI_ALERT && _droneNToastT <= 0) {
     _droneNToastT = DRONE_N_TOAST_GAP;
     window.GamepadKit?.toast?.('👁️ Sentinelle : intrus repéré');
-    window.Sfx?.play('drone-alerte');
   }
 
   // --- Déplacement (plan horizontal, hauteur constante) ---
@@ -4258,6 +4254,7 @@ function _initControls() {
     if (k === 'd' || k === 'arrowright')              { keys.d = true;  e.preventDefault(); }
     if (k === 'shift')                                 keys.shift = true;
     if (k === 'x')                                     { if (!e.repeat) _tryJump(); e.preventDefault(); }
+    if (k === 'r')                                     { if (!e.repeat && !_droneTakeoff && !_inVehicle() && !_sanctuaryMenuOpen()) _startDroneTakeoff(); e.preventDefault(); }      // R = lancer le drone (clavier) : c'est le joueur qui décide, rien ne décolle tout seul
     if (k === 'k')                                     { if (!e.repeat) _toggleKneeling(); e.preventDefault(); }
     if (k === 'f')                                     { if (!e.repeat && !window.__vehicleBusy) _startGadgetShot(false); e.preventDefault(); }      // F = tir, sauf près de la voiture (monter / descendre)
     if (k === 'v')                                     { if (!e.repeat) _startGadgetShot(true); e.preventDefault(); }
@@ -4398,7 +4395,6 @@ function _showPortalVideo(dest, type) {
     const ms = Math.max(800, Math.min(9000, _portalGif.ms || 2500));
     const url = URL.createObjectURL(new Blob([_portalGif.bytes], { type: 'image/gif' }));
     _portalImgEl.onload = () => { if (_portalImgEl.dataset.blob === url) URL.revokeObjectURL(url); };
-    window.Sfx?.play('portail-whoosh');
     _portalImgEl.dataset.blob = url; _portalImgEl.src = url;                    // nouvelle URL : le GIF repart de la première image
     _portalVideoOverlay.style.visibility = 'visible';
     requestAnimationFrame(() => { _portalVideoOverlay.style.opacity = '1'; });
@@ -4414,7 +4410,6 @@ function _onPortalVideoEnd() {
   if (!_portalVideoOverlay) return;
   clearTimeout(_portalGifTimer); _portalGifTimer = 0;
   _portalVideoOverlay.style.opacity = '0';
-  window.Sfx?.play('portail-fondu');
   setTimeout(() => {
     _portalVideoOverlay.style.visibility = 'hidden';
     if (_portalImgEl) _portalImgEl.removeAttribute('src');

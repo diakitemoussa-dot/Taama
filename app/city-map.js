@@ -84,6 +84,7 @@ function init() {
 
   /* ---------- lieux et itinéraires ---------- */
   let router = null, routeReq = false, autoShown = false;
+  let autoOpened = false;   // carte ouverte PAR L'HISTOIRE (openTo) : les sticks sont bloqués tant qu'elle reste ouverte ; ouverte à la main : ils déplacent la carte
   const ls = (k) => { try { return localStorage.getItem(k) === '1'; } catch (_) { return false; } };
   // destination suggérée selon l'avancement de l'histoire (bible chapitre 1) : dispositif 1 -> labo ; labo 1 fait -> aucune ;
   // gadget -> base NÉANTIS ; dispositif 2 -> labo ; labo 2 fait -> aucune
@@ -198,6 +199,7 @@ function init() {
       if (sel.id) recomputeRoute(true);
       window.GamepadKit?.capture?.(true);                        // la manette ne pilote plus le jeu
     } else {
+      autoOpened = false;                                        // fermée : le jeu récupère la manette, et la prochaine ouverture manuelle laissera les sticks libres
       window.GamepadKit?.capture?.(false);
     }
     lastKey = ''; resizeCanvas(); draw(true);
@@ -454,10 +456,13 @@ function init() {
     for (const k of held) { const d = PAN_KEYS[k]; if (d) { ex += d[0]; ny += d[1]; } }
     if (raw && GP.connected()) {
       const s = raw.state();
-      ex += s.lx; ny += -s.ly;
-      zf = (raw.trigger(7) - raw.trigger(6)) + (-s.ry);              // RT / stick droit ↑ = zoom avant ; LT / stick droit ↓ = arrière
-      if (raw.justPressed('B') || raw.justPressed('LEFT')) { setOpen(false); return; }
-      if (raw.justPressed('A')) recenter();
+      if (raw.justPressed('B')) { setOpen(false); return; }          // B ferme toujours (et rend la manette au jeu)
+      if (!autoOpened) {                                             // carte ouverte à la main : sticks et gâchettes déplacent / zooment la carte
+        ex += s.lx; ny += -s.ly;
+        zf = (raw.trigger(7) - raw.trigger(6)) + (-s.ry);            // RT / stick droit ↑ = zoom avant ; LT / stick droit ↓ = arrière
+        if (raw.justPressed('LEFT')) { setOpen(false); return; }
+        if (raw.justPressed('A')) recenter();
+      }
     }
     if (ex || ny) {
       const n = Math.hypot(ex, ny), k = n > 1 ? 1 / n : 1;
@@ -502,6 +507,7 @@ function init() {
     openTo(id) {
       autoShown = true;
       if (sel.id !== id) { sel.id = id; sel.route = null; sel.from = null; }
+      if (!open) autoOpened = true;                              // ouverture automatique (histoire) : sticks bloqués jusqu'à la fermeture
       setOpen(true);
       fitPending = true; recomputeRoute(true);
       if (fitRoute()) fitPending = false;

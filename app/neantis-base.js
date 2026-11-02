@@ -67,8 +67,10 @@ function setupInterior(root) {
     device.traverse((c) => { if (c.isMesh) { c.castShadow = false; c.raycast = () => {}; } });
   }
   // lumière intérieure : trois sources bleutées (nombre constant)
-  for (const nm of ['Anchor_Light_Sas', 'Anchor_Light_Ecrans', 'Anchor_Light_Coffre']) {
-    const p = state.anchors[nm]; if (!p) continue;
+  const maxBase = window.Quality ? window.Quality.preset.baseLights : 3;     // palier économique : 1 seule lumière intérieure
+  let nBase = 0;
+  for (const nm of ['Anchor_Light_Ecrans', 'Anchor_Light_Sas', 'Anchor_Light_Coffre']) {
+    const p = state.anchors[nm]; if (!p || nBase >= maxBase) continue; nBase++;
     const L = new THREE.PointLight(0x7fb8ff, 70, 24, 2); L.position.copy(p); L.castShadow = false;
     M.scene.add(L);
   }
@@ -90,7 +92,6 @@ function updateDoors(dt, pp) {
       near = dy < 6 && r < (d.open ? open_r + 1.2 : open_r);
     }
     d.open = near;
-    if (d.snd === undefined) d.snd = near; else if (d.snd !== near) { d.snd = near; window.Sfx?.play('porte-coulisse', { close: !near }); }   // son de porte
     const target = near ? 1 : 0;
     if (d.amt === target) continue;
     d.amt += Math.sign(target - d.amt) * Math.min(Math.abs(target - d.amt), dt / DOOR_TIME);
@@ -205,6 +206,7 @@ function build(gltf) {
   for (const nm of ['Glow_Emblem', 'Glow_Portail']) {
     const p = state.anchors[nm]; if (!p) continue;
     const L = new THREE.PointLight(BLUE_HALO, 0, 55, 2); L.position.copy(p); L.castShadow = false;
+    L.visible = !window.Quality || window.Quality.preset.baseLights >= 3;   // halos bleus : sprites seulement sur le palier économique
     M.scene.add(L); lights.push(L);
   }
   state.root = root; state.loaded = true;

@@ -128,6 +128,8 @@ let _ovHintShown  = false;  // aide vue d'ensemble déjà montrée ?
 const _OVERVIEW_HINT = '🎮 A jouer (drone) · Y sanctuaire · X vidéo · START menu · stick D tourner · stick G se déplacer · LT/RT zoom';
 
 function _overviewActive() {
+  if (document.body.classList.contains('mode-campaign')) return false;   // partie en cours : la vue d'ensemble (GAME / SANCTUAIRE / MENU) n'existe plus, A / Y / X ne doivent rien lancer (sinon A, qui fait avancer Tapama, démarrait le drone)
+  if (window.Tapama && window.Tapama.isBusy && window.Tapama.isBusy()) return false;                 // dialogue de Tapama ouvert : il a la manette
   if (window.GameUI && window.GameUI.isOpen && window.GameUI.isOpen()) return false;   // un écran du jeu (menu, pause…) a la manette
   const stage = document.getElementById('mosqueStage');
   if (!stage || !stage.classList.contains('on')) return false;

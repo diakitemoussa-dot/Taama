@@ -53,6 +53,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   volume: 80, music: 60, effects: 85, drone: 70, ambience: 55,
   muteBackground: true, muteAll: false,
   quality: 'auto',                 // auto | low | mid | high
+  netAdapt: true, saveData: false, // réseau : adapter selon la connexion / économiser mes données
   fullscreen: false, shadows: true, showClock: true, showHints: true, showFps: false,
   timeSpeed: 1,                    // ×1 ×2 ×4 ×8
   skippableCutscenes: true, objectiveReminder: true, aimAssist: true,

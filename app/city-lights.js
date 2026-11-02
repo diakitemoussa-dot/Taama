@@ -10,7 +10,7 @@
    Ville v2 uniquement (les positions sont calées sur djenne-ville-leger.glb).
    ========================================================== */
 import * as THREE from 'three';
-import { detectQuality } from './device-quality.js?v=2';
+import { detectQuality } from './device-quality.js?v=5';
 
 const M = window.MosqueScene;
 const LAMPS_URL = 'assets/models/djenne-lampadaires.json?v=4';
@@ -20,7 +20,7 @@ const HEAD_R   = 0.34;                     // rayon de la lanterne
 const WARM_ON  = new THREE.Color(0xffd79a);
 const WARM_OFF = new THREE.Color(0x4a443a);
 const LIGHT_COLOR = 0xffb866;
-const POOL = { low: 0, mid: 3, high: 6 };  // vraies lumières selon la qualité
+const POOL = { low: 0, mid: 2, high: 3 };  // vraies lumières selon la qualité
 const GLOW_SIZE = 12;                      // taille du halo (m)
 
 let built = false, lamps = null, group = null;

@@ -68,7 +68,9 @@ function portrait(mood, cls, alt) {
   return i;
 }
 
-function pad() { return window.GamepadKit; }
+// lecture DIRECTE de la manette (`raw`) : le monde 3D est « capturé » (labo, carte…) pendant les dialogues, mais A / B / Y doivent continuer à faire avancer les bulles
+const _padFacade = { connected: () => !!(window.GamepadKit && window.GamepadKit.connected()), justPressed: (n) => { const k = window.GamepadKit; return !!(k && (k.raw || k).justPressed(n)); } };
+function pad() { return window.GamepadKit ? _padFacade : null; }
 
 /* Options › Cinématiques passables : si désactivé, le dialogue doit être lu en entier */
 const canSkip = () => !(window.GameSettings && window.GameSettings.skippableCutscenes === false);
@@ -186,7 +188,6 @@ function renderLine() {
   d.tabName.textContent = isT ? TAPAMA_NAME : (playerName() || t(PLAYER_NAME));
   d.tabRole.textContent = isT ? t('Chercheuse · par téléphone') : t('Toi · réponse');
   d.text.textContent = `« ${nm(t(line.text))} »`;
-  window.Sfx?.play(isT ? 'voix-tapama' : 'voix-joueur', { mood: line.mood });
 
   if (isT) {
     d.face.src = portraitUrl(line.mood);
@@ -283,10 +284,9 @@ function paintRadio() {
   const cur = radioQueue.current();
   const el = buildRadio();
   if (!cur) {
-    if (radioShown) { el.classList.remove('on'); radioShown = false; window.Sfx?.play('radio-ferme'); }
+    if (radioShown) { el.classList.remove('on'); radioShown = false; }
     return;
   }
-  window.Sfx?.play(radioShown ? 'voix-tapama' : 'radio-ouvre', { mood: cur.mood });
   el.querySelector('img').src = portraitUrl(cur.mood);
   el.querySelector('.tp-r-text').textContent = `« ${nm(t(cur.text))} »`;
   el.querySelector('.tp-r-bar span').style.width = '0%';
