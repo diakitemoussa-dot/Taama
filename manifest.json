@@ -1,0 +1,12 @@
+{
+  "name": "Djenné · Survol du Drone",
+  "short_name": "Djenné Drone",
+  "description": "Expérience immersive 3D de la Grande Mosquée de Djenné — survol en drone.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#1a0f24",
+  "theme_color": "#1a0f24"
+}

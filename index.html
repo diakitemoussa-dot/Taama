@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#1a0f24" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Ccircle cx='22' cy='22' r='20' fill='%2355415D'/%3E%3Cpolygon points='22,8 27,22 22,36 17,22' fill='%23F9D58B'/%3E%3C/svg%3E" />
+  <title>Djenné · Survol du Drone</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=Open+Sans:wght@400;600;700&family=Rubik:wght@500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="styles/main.css?v=3" />
+  <link rel="stylesheet" href="styles/mosque.css?v=3" />
+  <link rel="stylesheet" href="styles/drone-game.css?v=3" />
+  <link rel="stylesheet" href="styles/sanctuary.css?v=6" />
+  <link rel="stylesheet" href="styles/menu.css?v=1" />
+  <link rel="stylesheet" href="styles/daycycle.css?v=2" />
+  <link rel="stylesheet" href="styles/gamepad.css?v=1" />
+  <link rel="stylesheet" href="styles/tapama.css?v=2" />
+  <!-- Nouvelle interface (écrans du canvas). ?legacy=1 rétablit l'ancienne intro. -->
+  <script>
+    window.__NEW_UI = !/[?&]legacy=1/.test(location.search);
+    if (window.__NEW_UI) document.documentElement.classList.add('gu');
+  </script>
+  <link rel="stylesheet" href="styles/game-ui.css?v=6" />
+<link rel="stylesheet" href="styles/city-map.css?v=9" />
+  <link rel="stylesheet" href="styles/explore.css?v=2" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/",
+        "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.8/build/index.module.js"
+      }
+    }
+  </script>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+</head>
+
+<body>
+  <div id="glitchOverlay"></div>
+  <main id="stage" class="stage">
+
+    <!-- Halo lumineux d'arrière-plan -->
+    <div class="sky" aria-hidden="true"></div>
+    <div class="sun" aria-hidden="true"></div>
+    <div class="grid" aria-hidden="true"></div>
+    <div class="sand" aria-hidden="true"></div>
+
+    <!-- Bandeau motif (CSS) -->
+    <div class="mosque" aria-hidden="true">
+      <div class="band-halo"></div>
+      <div class="band-row row-chev-up"></div>
+      <div class="band-row row-rhombus"></div>
+      <div class="band-row row-chev-down"></div>
+      <div class="band-row row-tri"></div>
+    </div>
+
+    <!-- Cadre HUD futuriste -->
+    <div class="hud" aria-hidden="true">
+      <span class="corner tl"></span>
+      <span class="corner tr"></span>
+      <span class="corner bl"></span>
+      <span class="corner br"></span>
+    </div>
+
+    <!-- Particules dorées flottantes -->
+    <div class="particles" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+
+    <!-- Panneaux HUD latéraux (grand écran) -->
+    <aside class="side left" aria-hidden="true">
+      <div class="side-label">N · 13°54'19"</div>
+      <ul class="side-list">
+        <li><span>01</span>SCAN OK</li>
+        <li><span>02</span>LINK 5G</li>
+        <li><span>03</span>GPS LOCK</li>
+        <li><span>04</span>IMU CAL</li>
+        <li><span>05</span>CAM 4K</li>
+      </ul>
+      <div class="side-bars">
+        <div class="vb"><i style="--h:78%"></i></div>
+        <div class="vb"><i style="--h:54%"></i></div>
+        <div class="vb"><i style="--h:92%"></i></div>
+        <div class="vb"><i style="--h:66%"></i></div>
+        <div class="vb"><i style="--h:88%"></i></div>
+      </div>
+      <div class="side-tag">SECT · A-04</div>
+    </aside>
+
+    <aside class="side right" aria-hidden="true">
+      <div class="side-label">W · 04°33'07"</div>
+      <div class="compass">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#f9d58b" stroke-width="1" opacity=".7" />
+          <circle cx="50" cy="50" r="34" fill="none" stroke="#f9d58b" stroke-width=".5" stroke-dasharray="2 4"
+            opacity=".5" />
+          <g stroke="#f9d58b" stroke-width="1">
+            <line x1="50" y1="6" x2="50" y2="14" />
+            <line x1="50" y1="86" x2="50" y2="94" />
+            <line x1="6" y1="50" x2="14" y2="50" />
+            <line x1="86" y1="50" x2="94" y2="50" />
+          </g>
+          <polygon points="50,18 46,50 54,50" fill="#f9d58b" />
+          <polygon points="50,82 46,50 54,50" fill="#f9d58b" opacity=".35" />
+          <text x="50" y="4" text-anchor="middle" font-size="6" fill="#f9d58b">N</text>
+          <text x="50" y="100" text-anchor="middle" font-size="6" fill="#f9d58b" opacity=".5">S</text>
+          <text x="2" y="52" font-size="6" fill="#f9d58b" opacity=".5">W</text>
+          <text x="93" y="52" font-size="6" fill="#f9d58b" opacity=".5">E</text>
+        </svg>
+      </div>
+      <ul class="side-list">
+        <li><span>T°</span>32°C</li>
+        <li><span>HR</span>14%</li>
+        <li><span>PR</span>1012</li>
+        <li><span>UV</span>09</li>
+      </ul>
+      <div class="side-tag">FREQ · 2.4 GHz</div>
+    </aside>
+
+    <!-- Tablette holographique -->
+    <section class="panel">
+      <div class="holo-tablet" id="tablet">
+        <span class="edge e1"></span><span class="edge e2"></span>
+        <span class="edge e3"></span><span class="edge e4"></span>
+        <span class="bolt b1"></span><span class="bolt b2"></span>
+        <span class="bolt b3"></span><span class="bolt b4"></span>
+
+        <!-- En-tête -->
+        <header class="t-head">
+          <div class="t-brand">
+            <span class="logo">◈</span>
+            <span>DJENNÉ · RECON SYS</span>
+          </div>
+          <div class="t-status">
+            <i></i><i></i><i></i>
+            <span>v1.0 · ONLINE</span>
+          </div>
+        </header>
+
+        <!-- Grille principale -->
+        <div class="t-grid">
+          <!-- Colonne gauche : infos -->
+          <aside class="t-left">
+            <div class="t-row">
+              <span class="t-ico">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5" />
+                  <circle cx="12" cy="12" r="3" fill="currentColor" />
+                  <line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" stroke-width="1.5" />
+                  <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="1.5" />
+                  <line x1="2" y1="12" x2="6" y2="12" stroke="currentColor" stroke-width="1.5" />
+                  <line x1="18" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+              </span>
+              <div class="t-content">
+                <b>CIBLE</b>
+                <em>Grande Mosquée</em>
+              </div>
+              <svg class="t-chev" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9 L12 15 L18 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </div>
+
+            <div class="t-row">
+              <span class="t-ico">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 2 C8 2 5 5 5 9 C5 14 12 22 12 22 C12 22 19 14 19 9 C19 5 16 2 12 2 Z" fill="none"
+                    stroke="currentColor" stroke-width="1.5" />
+                  <circle cx="12" cy="9" r="2.5" fill="currentColor" />
+                </svg>
+              </span>
+              <div class="t-content">
+                <b>POSITION</b>
+                <em>14°N · 04°W</em>
+              </div>
+              <svg class="t-chev" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9 L12 15 L18 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </div>
+
+            <div class="t-row">
+              <span class="t-ico">
+                <svg viewBox="0 0 24 24">
+                  <path d="M3 9 Q6 5 9 9 T15 9 T21 9" fill="none" stroke="currentColor" stroke-width="1.5"
+                    stroke-linecap="round" />
+                  <path d="M3 14 Q6 10 9 14 T15 14 T21 14" fill="none" stroke="currentColor" stroke-width="1.5"
+                    stroke-linecap="round" opacity=".6" />
+                  <path d="M3 19 Q6 15 9 19 T15 19" fill="none" stroke="currentColor" stroke-width="1.5"
+                    stroke-linecap="round" opacity=".4" />
+                </svg>
+              </span>
+              <div class="t-content">
+                <b>VENT</b>
+                <em>04 m/s · NE</em>
+              </div>
+              <svg class="t-chev" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9 L12 15 L18 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </div>
+
+            <div class="t-row">
+              <span class="t-ico">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5" />
+                  <path d="M12 3 A9 9 0 0 0 12 21 Z" fill="currentColor" />
+                </svg>
+              </span>
+              <div class="t-content">
+                <b>HEURE</b>
+                <em>18:42 · MAGHRIB</em>
+              </div>
+              <svg class="t-chev" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9 L12 15 L18 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </div>
+          </aside>
+
+          <!-- Visuel central : drone vue de dessus -->
+          <div class="t-center">
+            <div class="t-holo">
+              <!-- Viseur fixe -->
+              <svg class="t-target" viewBox="0 0 200 200" aria-hidden="true">
+                <defs>
+                  <radialGradient id="halo" cx="50%" cy="50%" r="60%">
+                    <stop offset="0%" stop-color="#f9d58b" stop-opacity=".45" />
+                    <stop offset="70%" stop-color="#f9d58b" stop-opacity="0" />
+                  </radialGradient>
+                </defs>
+                <circle cx="100" cy="100" r="90" fill="url(#halo)" />
+                <g stroke="#f9d58b" stroke-width="1" fill="none" opacity=".75">
+                  <circle cx="100" cy="100" r="80" />
+                  <circle cx="100" cy="100" r="50" stroke-dasharray="3 5" />
+                  <line x1="100" y1="10" x2="100" y2="30" />
+                  <line x1="100" y1="170" x2="100" y2="190" />
+                  <line x1="10" y1="100" x2="30" y2="100" />
+                  <line x1="170" y1="100" x2="190" y2="100" />
+                </g>
+              </svg>
+
+              <!-- Drone GLB 3D animé -->
+              <canvas class="t-drone-3d" id="droneCanvas"></canvas>
+            </div>
+            <div class="t-scan"></div>
+            <div class="t-pct"><b id="readyPct">98</b><span>%</span><em>SYSTÈME PRÊT</em></div>
+          </div>
+
+          <!-- Colonne droite : badge -->
+          <aside class="t-right">
+            <div class="t-badge">
+              <span class="t-badge-text">DRONE<br /><b id="droneMode">—</b></span>
+              <!-- BOUTON CTA "DÉCOLLE LE DRONE" -->
+              <div class="cta-wrap">
+                <span class="cta-rail left"></span>
+                <button id="launchBtn" class="cta-launch" type="button" aria-label="Décolle le drone">
+                  <span class="cta-ring"></span>
+                  <span class="cta-ring r2"></span>
+                  <span class="cta-core">
+                    <svg viewBox="0 0 24 24" class="cta-arrow" aria-hidden="true">
+                      <path d="M12 3 L18 11 L14 11 L14 21 L10 21 L10 11 L6 11 Z" fill="currentColor" />
+                    </svg>
+                  </span>
+                  <span class="cta-text">
+                    <em>// COMMANDE D'ENVOL</em>
+                    <strong>DÉCOLLE LE DRONE</strong>
+                  </span>
+                  <span class="cta-energy"><i></i></span>
+                  <span class="cta-chev">›</span>
+                </button>
+                <span class="cta-rail right"></span>
+              </div>
+            </div>
+            <div class="t-mini">
+              <span>ALT</span><b>00m</b>
+              <span>SIG</span><b>98%</b>
+              <span>BAT</span><b>100%</b>
+            </div>
+          </aside>
+        </div>
+
+        <!-- Console défilante -->
+        <div class="t-console" id="console">
+          <span class="prompt">›</span>
+          <div class="lines" id="consoleLines"></div>
+        </div>
+
+        <!-- Barres -->
+        <div class="t-bars">
+          <div class="bar-row"><label>SIGNAL</label>
+            <div class="track"><span style="--w:98%"></span></div><b>98%</b>
+          </div>
+          <div class="bar-row"><label>BATTERIE</label>
+            <div class="track"><span style="--w:100%"></span></div><b>100%</b>
+          </div>
+          <div class="bar-row"><label>GPS</label>
+            <div class="track"><span style="--w:92%"></span></div><b>92%</b>
+          </div>
+        </div>
+
+        <!-- Pied -->
+        <footer class="t-foot">
+          <p class="t-title">DJENNÉ <small>Patrimoine · Survol 3D</small></p>
+          <p class="t-foot-stat"><span class="dot"></span>SYSTÈME PRÊT AU LANCEMENT</p>
+        </footer>
+      </div>
+
+      <!-- Reflet au sol -->
+      <div class="reflection" aria-hidden="true"></div>
+      <div class="dust" aria-hidden="true"></div>
+    </section>
+
+    <!-- Overlay vidéo -->
+    <div id="videoOverlay" class="video-overlay" aria-hidden="true">
+      <div class="video-frame">
+        <div class="vhud">
+          <span class="rec"><i></i> REC</span>
+          <span class="meta" id="vMeta">DRONE · 00:00</span>
+          <span class="coords">14°N · 04°W</span>
+        </div>
+        <video id="introVideo" playsinline preload="auto"></video>
+        <button id="skipBtn" class="skip" type="button">PASSER ›</button>
+      </div>
+    </div>
+
+    <!-- Voile d'intro : animation de texte d'entrée -->
+    <div id="boot" class="boot">
+      <div class="intro-stage" id="introStage" aria-live="polite"></div>
+      <span class="intro-skip" id="introSkip" role="button" tabindex="0">PASSER ›</span>
+    </div>
+
+    <!-- Bouton son -->
+    <button id="soundToggle" class="sound-btn" type="button" aria-label="Son">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 9 V15 H7 L13 20 V4 L7 9 Z" fill="currentColor" />
+        <path d="M16 8 Q20 12 16 16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" />
+      </svg>
+      <span id="soundLabel">SON OFF</span>
+    </button>
+
+    <!-- Séquence de décollage : compte à rebours -->
+    <div id="liftoff" class="liftoff" aria-hidden="true">
+      <div class="lo-grid" aria-hidden="true"></div>
+      <div class="lo-noise" aria-hidden="true"></div>
+
+      <div class="lo-shake">
+        <!-- Anneaux de propulsion -->
+        <svg class="lo-thrusters" viewBox="0 0 400 400" aria-hidden="true">
+          <defs>
+            <linearGradient id="thrGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#f9d58b" stop-opacity="0" />
+              <stop offset="50%" stop-color="#f9d58b" stop-opacity="1" />
+              <stop offset="100%" stop-color="#f9d58b" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+          <!-- 3 anneaux rotatifs concentriques -->
+          <circle class="thr r1" cx="200" cy="200" r="180" fill="none" stroke="url(#thrGrad)" stroke-width="3"
+            stroke-dasharray="40 16 80 24 50 30 120 20" />
+          <circle class="thr r2" cx="200" cy="200" r="150" fill="none" stroke="url(#thrGrad)" stroke-width="2"
+            stroke-dasharray="60 18 30 40 90 22" />
+          <circle class="thr r3" cx="200" cy="200" r="120" fill="none" stroke="#f9d58b" stroke-width="1.5" opacity=".6"
+            stroke-dasharray="3 8" />
+          <!-- Tics cardinaux -->
+          <g stroke="#f9d58b" stroke-width="2">
+            <line x1="200" y1="20" x2="200" y2="38" />
+            <line x1="200" y1="362" x2="200" y2="380" />
+            <line x1="20" y1="200" x2="38" y2="200" />
+            <line x1="362" y1="200" x2="380" y2="200" />
+          </g>
+          <!-- Cible centrale -->
+          <circle cx="200" cy="200" r="6" fill="#f9d58b" />
+          <circle cx="200" cy="200" r="14" fill="none" stroke="#f9d58b" stroke-width="1" />
+        </svg>
+
+        <!-- Anneau d'énergie qui se remplit -->
+        <svg class="lo-charge" viewBox="0 0 200 200" aria-hidden="true">
+          <circle cx="100" cy="100" r="92" fill="none" stroke="#f9d58b22" stroke-width="3" />
+          <circle id="liftoffCharge" cx="100" cy="100" r="92" fill="none" stroke="#f9d58b" stroke-width="3"
+            stroke-dasharray="578" stroke-dashoffset="578" stroke-linecap="round" transform="rotate(-90 100 100)"
+            style="filter:drop-shadow(0 0 8px #f9d58b)" />
+        </svg>
+
+        <!-- T-MINUS + chiffre -->
+        <div class="lo-count">
+          <span class="lo-tminus" id="liftoffTminus">T - 0:03</span>
+          <div class="lo-digit" id="liftoffDigit">3</div>
+          <span class="lo-label" id="liftoffLabel">PRÉPARATION</span>
+        </div>
+      </div>
+
+      <!-- Flash final -->
+      <div class="lo-flash" id="liftoffFlash"></div>
+    </div>
+
+    <!-- ÉTAPE FINALE : maquette 3D de la ville (après la vidéo drone) -->
+    <div id="mosqueStage" class="mosque-stage" aria-hidden="true">
+      <canvas id="mosqueCanvas"></canvas>
+      <div id="mosqueLoading" class="mosque-loading">
+        <div class="mq-spinner" aria-hidden="true"></div>
+        <p class="mq-load-txt">CHARGEMENT DE LA MAQUETTE · <b>0%</b></p>
+      </div>
+      <div class="mosque-title" aria-hidden="true">
+        <em>// SURVOL TERMINÉ</em>
+        <strong>GRANDE MOSQUÉE DE DJENNÉ</strong>
+        <span class="mq-sub">
+          <span class="mq-sub-desktop">Glissez pour explorer · molette pour zoomer</span>
+          <span class="mq-sub-mobile">Glissez pour explorer · pincez pour zoomer</span>
+        </span>
+      </div>
+
+      <!-- Panneau d'informations (haut de l'écran, texte blanc, sans fond) -->
+      <div id="mosqueInfo" class="mq-info" aria-live="polite">
+        <div class="mq-info-block" data-info="facade">
+          <h2 class="mq-info-title">LA FAÇADE</h2>
+          <ul class="mq-info-list">
+            <li><b>Le mur de la prière (qibla)</b> : c'est la façade principale ; elle est tournée vers La Mecque, la direction de la prière.</li>
+            <li><b>Les trois grandes tours</b> : elles dominent la façade et donnent à la mosquée sa forme reconnaissable.</li>
+            <li><b>Les poutres en bois (torons)</b> : ce sont des branches de palmier qui dépassent des murs d'environ 60 cm. Elles servent d'échafaudage déjà en place pour réparer le bâtiment chaque année.</li>
+            <li><b>Le banco</b> : un mélange de terre crue et de paille. Il est refait chaque année par les habitants lors d'une grande fête.</li>
+          </ul>
+        </div>
+
+        <div class="mq-info-block" data-info="minarets">
+          <h2 class="mq-info-title">LES MINARETS</h2>
+          <ul class="mq-info-list">
+            <li><b>Trois grandes tours</b> : elles s'élèvent sur le mur de la prière. La tour du milieu mesure environ 16 mètres.</li>
+            <li><b>Monter au toit</b> : les minarets eux-mêmes n'ont pas d'escalier. Ce sont deux tours carrées, à part, qui abritent les marches menant au toit.</li>
+            <li><b>L'appel à la prière</b> : depuis le haut de la tour principale, le muezzin appelle les fidèles à venir prier.</li>
+            <li><b>Les œufs d'autruche</b> : chaque pointe de tour est coiffée d'un œuf d'autruche. On lui associe souvent une idée de pureté et de fécondité.</li>
+          </ul>
+        </div>
+
+        <div class="mq-info-block" data-info="ventilation">
+          <h2 class="mq-info-title">LES CANARIS</h2>
+          <ul class="mq-info-list">
+            <li>Des bols en terre cuite (canaris), posés à l'envers, coiffent de petits trous d'aération sur le toit.</li>
+            <li>On les retire pour laisser l'air chaud monter et sortir : la salle de prière reste plus fraîche.</li>
+            <li>L'eau de pluie, elle, est éloignée des murs par d'autres tuyaux en terre cuite placés au bord du toit.</li>
+            <li>Tout est en terre, comme le reste du bâtiment, et refait chaque année.</li>
+          </ul>
+        </div>
+
+        <div class="mq-info-block" data-info="cour">
+          <h2 class="mq-info-title">LA COUR DES FEMMES</h2>
+          <ul class="mq-info-list">
+            <li>À côté de la grande salle s'ouvre une cour bordée de galeries couvertes.</li>
+            <li>La galerie de l'ouest est l'espace réservé à la prière des femmes.</li>
+            <li>Ouverte sur le ciel, la cour reste fraîche et bien aérée aux heures de prière.</li>
+            <li>Ses murs en banco sont refaits chaque année, comme tout le bâtiment.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Boutons d'action sur la maquette (style néon — palette de l'expérience) -->
+      <div class="mq-ui">
+        <!-- coin haut-droit : Réalité augmentée -->
+        <button type="button" class="mq-circle mq-ar" data-action="ar" aria-label="Mode réalité augmentée">
+          <span class="mq-circle-label">AR</span>
+        </button>
+
+        <!-- coin haut-droit (sur une fiche) : vidéo du crépissage -->
+        <button type="button" class="mq-video-btn" data-action="video-crepissage" aria-label="Voir la vidéo du grand crépissage">
+          <span class="mq-video-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </span>
+          <span class="mq-video-txt">LE GRAND CRÉPISSAGE</span>
+        </button>
+
+        <!-- coin bas-droit : menu radial (déploie les sous-boutons en arc) -->
+        <div class="mq-menu-wrap">
+          <div class="mq-radial">
+            <button type="button" class="mq-rad-item" data-part="facade"
+                    style="--tx:calc(var(--r) * -0.242); --ty:calc(var(--r) * -0.970)">
+              <span class="mq-rad-label">Façade</span>
+              <span class="mq-rad-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 22V12l1.6-2.3L6.2 12v10zM10.4 22V7.3L12 5l1.6 2.3V22zM17.8 22V12l1.6-2.3L21 12v10z"/><rect x="2.5" y="15.4" width="19" height="6.6"/></svg>
+              </span>
+            </button>
+
+            <button type="button" class="mq-rad-item" data-part="minarets"
+                    style="--tx:calc(var(--r) * -0.695); --ty:calc(var(--r) * -0.719)">
+              <span class="mq-rad-label">Minarets</span>
+              <span class="mq-rad-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2l1.9 3.3v1.5h-3.8V5.3L12 2z"/><rect x="9.7" y="7.3" width="4.6" height="2.6"/><rect x="9" y="10.5" width="6" height="11.5"/></svg>
+              </span>
+            </button>
+
+            <button type="button" class="mq-rad-item" data-part="ventilation"
+                    style="--tx:calc(var(--r) * -0.951); --ty:calc(var(--r) * -0.309)">
+              <span class="mq-rad-label">Ventilation</span>
+              <span class="mq-rad-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M9.1 3h5.8l-.7 2.3c1.9 1 3.2 3.2 3.2 5.9 0 4.4-2.4 8-5.4 8s-5.4-3.6-5.4-8c0-2.7 1.3-4.9 3.2-5.9L9.1 3z"/></svg>
+              </span>
+            </button>
+
+            <button type="button" class="mq-rad-item" data-part="cour"
+                    style="--tx:calc(var(--r) * -0.978); --ty:calc(var(--r) * 0.208)">
+              <span class="mq-rad-label">Cour<br>extérieure</span>
+              <span class="mq-rad-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 1.5l2.2 5.9 5.9-2.2-2.2 5.9 2.2 5.9-5.9-2.2L12 22.5l-2.2-5.9-5.9 2.2 2.2-5.9-2.2-5.9 5.9 2.2z"/></svg>
+              </span>
+            </button>
+          </div>
+
+          <button type="button" class="mq-circle mq-menu" data-action="menu" aria-label="Menu" aria-expanded="false">
+            <span class="mq-burger"><i></i><i></i><i></i></span>
+          </button>
+        </div>
+
+        <!-- coin bas-gauche : modes -->
+        <div class="mq-actions">
+          <button type="button" class="mq-btn is-active" data-action="game" aria-pressed="true">GAME</button>
+          <button type="button" class="mq-btn mq-btn--ghost" data-action="interior" aria-pressed="false">SANCTUAIRE</button>
+        </div>
+      </div>
+
+      <!-- Fenêtre vidéo : le grand crépissage annuel -->
+      <div id="mosqueVideo" class="mq-video-modal" aria-hidden="true">
+        <div class="mq-video-backdrop"></div>
+        <div class="mq-video-inner">
+          <button type="button" class="mq-video-close" aria-label="Fermer la vidéo">✕</button>
+          <h3 class="mq-video-title">LE GRAND CRÉPISSAGE</h3>
+          <video id="mosqueVideoEl" class="mq-video-el" controls playsinline preload="none" hidden>
+          </video>
+          <p id="mosqueVideoSoon" class="mq-video-soon">Vidéo bientôt disponible.</p>
+        </div>
+      </div>
+
+      <!-- ===== HUD du mode jeu drone (caché par défaut) ===== -->
+      <div id="droneHud" class="dg-hud" aria-hidden="true">
+        <!-- Coin haut-gauche : boussole / radar -->
+        <div class="dg-compass">
+          <span class="dg-compass-deg" id="dgHeading">0°</span>
+          <span class="dg-compass-eye" aria-hidden="true">◉</span>
+          <i class="dg-compass-fan" id="dgFan"></i>
+        </div>
+
+        <!-- Coin haut-droit : batterie + signal + quitter -->
+        <div class="dg-status">
+          <span class="dg-batt" id="dgBatt">100%</span>
+          <span class="dg-signal" id="dgSignal">▮▮▮▮</span>
+          <button type="button" class="dg-quit" id="dgQuit" aria-label="Quitter le mode jeu">✕</button>
+        </div>
+
+        <!-- Réticule central + télémétrie -->
+        <div class="dg-reticle">
+          <div class="dg-tele">
+            <span id="dgAngle">0.0°</span>
+            <span id="dgSpeed">0 MPH</span>
+            <span id="dgAlt">H : 0M</span>
+          </div>
+        </div>
+
+        <!-- Joystick gauche : altitude + yaw -->
+        <div class="dg-stick dg-stick--left" id="dgStickL">
+          <span class="dg-stick-up">UP</span>
+          <span class="dg-stick-down">DOWN</span>
+          <i class="dg-stick-knob"></i>
+        </div>
+
+        <!-- Joystick droit : avance + latéral -->
+        <div class="dg-stick dg-stick--right" id="dgStickR">
+          <i class="dg-stick-knob"></i>
+        </div>
+
+        <!-- Barre d'outils -->
+        <div class="dg-toolbar">
+          <button type="button" class="dg-tool" id="dgGallery" aria-label="Galerie">⭕</button>
+          <button type="button" class="dg-tool" id="dgPhoto" aria-label="Photo">📷</button>
+          <button type="button" class="dg-tool" id="dgList" aria-label="Points d'intérêt">☰</button>
+          <button type="button" class="dg-tool" id="dgModel" aria-label="Changer de drone">🚁</button>
+          <button type="button" class="dg-tool" id="dgVideo" aria-label="Enregistrer une vidéo">🎥</button>
+        </div>
+
+        <!-- Indice décollage (disparaît dès le premier envol) -->
+        <div class="dg-takeoff-hint" id="dgTakeoffHint" aria-live="polite">
+          <span class="dg-takeoff-arrow">↑</span>
+          <span class="dg-takeoff-label">JOYSTICK GAUCHE · DÉCOLLE</span>
+        </div>
+
+        <!-- Panneau points d'intérêt (caché) -->
+        <div class="dg-poi" id="dgPoi" hidden></div>
+
+        <!-- Galerie photos (cachée) -->
+        <div class="dg-galleryPanel" id="dgGalleryPanel" hidden></div>
+      </div>
+
+      <!-- ===== Overlay « tournez votre téléphone » (caché par défaut) ===== -->
+      <div id="droneRotate" class="dg-rotate" aria-hidden="true">
+        <div class="dg-rotate-ico">🔄</div>
+        <p>Tournez votre téléphone<br>en mode paysage</p>
+      </div>
+
+      <!-- ===== HUD du mode Sanctuaire (visite intérieure FPS) ===== -->
+      <div id="sanctuaryHud" class="sn-hud" aria-hidden="true">
+
+        <!-- Haut gauche : boussole -->
+        <div class="sn-compass">
+          <svg class="sn-compass-svg" viewBox="0 0 80 80" aria-hidden="true">
+            <circle cx="40" cy="40" r="36" fill="none" stroke="#f9d58b" stroke-width="1" opacity=".6"/>
+            <g stroke="#f9d58b" stroke-width="1">
+              <line x1="40" y1="4"  x2="40" y2="12"/>
+              <line x1="40" y1="68" x2="40" y2="76"/>
+              <line x1="4"  y1="40" x2="12" y2="40"/>
+              <line x1="68" y1="40" x2="76" y2="40"/>
+            </g>
+            <text x="40" y="9" text-anchor="middle" font-size="5" fill="#f9d58b">N</text>
+          </svg>
+          <!-- Aiguille HTML (pas SVG) pour garantir style.transform sur iOS Safari -->
+          <i id="snFan" class="sn-compass-needle" aria-hidden="true"></i>
+        </div>
+
+        <!-- Aide contrôles (disparaît après quelques secondes) -->
+        <p class="sn-hint" id="snHint">ZQSD · Maj courir · X/○ sauter · ✕ valider · clic/F tir · V tir latéral · glisser pour la caméra</p>
+
+        <!-- Viseur et cible du gadget -->
+        <div class="sn-reticle" id="snReticle" aria-hidden="true"></div>
+        <div class="sn-target" id="snTarget" aria-hidden="true">
+          <span class="sn-target-kicker">CIBLE</span>
+          <div class="sn-target-line">
+            <b id="snTargetState">DRONE HOSTILE</b>
+            <em id="snTargetDist">-- m</em>
+          </div>
+          <div class="sn-target-bar"><i id="snTargetFill"></i></div>
+        </div>
+
+        <!-- Panneau lieux (s'ouvre avec ☰) -->
+        <div id="snPoiPanel" class="sn-poi" hidden>
+          <button type="button" data-sn-poi="exterior">🚪 Extérieur</button>
+          <button type="button" data-sn-poi="interior">🕌 Intérieur</button>
+          <button type="button" data-sn-action="quit">↩ Quitter</button>
+        </div>
+
+        <!-- Haut droit : bouton quitter -->
+        <button type="button" class="sn-quit" id="snQuit" aria-label="Quitter le mode Sanctuaire">↩</button>
+
+        <!-- Joystick unique — bas droit -->
+        <div class="sn-stick" id="snStick">
+          <i class="sn-stick-knob"></i>
+        </div>
+
+        <!-- Barre d'actions — bas centre -->
+        <div class="sn-toolbar">
+          <button type="button" class="sn-tool" id="snPhoto"   aria-label="Capture d'écran">📷</button>
+          <button type="button" class="sn-tool" id="snMenu"    aria-label="Menu">☰</button>
+          <button type="button" class="sn-tool" id="snVideo"   aria-label="Vidéo">🎥</button>
+        </div>
+
+        <!-- Boutons de tir (clavier / tactile) -->
+        <div class="sn-combat">
+          <button type="button" class="sn-fire" id="snFire" aria-label="Tirer avec le gadget">
+            <span>⚡</span>TIR
+          </button>
+          <button type="button" class="sn-fire sn-fire-side" id="snFireSide" aria-label="Tir latéral au gadget">
+            <span>↔</span>CÔTÉ
+          </button>
+        </div>
+
+      </div>
+
+      <!-- ===== Overlay du mode AR (caché par défaut) ===== -->
+      <div id="arOverlay" class="ar-overlay" aria-hidden="true">
+        <button id="arQuit" class="ar-quit" type="button" aria-label="Quitter AR">✕</button>
+        <p id="arHint" class="ar-hint"></p>
+      </div>
+
+      <!-- model-viewer caché — gère AR Android (WebXR/Scene Viewer) + iOS (Quick Look) -->
+      <model-viewer
+        id="mosqueArViewer"
+        src="assets/models/djenne-mosque-only.glb"
+        ar
+        ar-modes="scene-viewer webxr quick-look"
+        ar-placement="floor"
+        ar-scale="auto"
+        scale="0.008 0.008 0.008"
+        style="position:fixed;top:0;left:0;width:100%;height:100%;opacity:0;pointer-events:none;z-index:-1;"
+        loading="eager">
+      </model-viewer>
+    </div>
+
+  </main>
+
+  <script src="app/game-audio.js?v=1"></script>
+  <script type="module" src="app/sfx.js?v=1"></script>
+  <script src="app/main.js?v=5"></script>
+  <script type="module" src="app/drone-viewer.js?v=3"></script>
+  <script type="module" src="app/mosque-viewer.js?v=24"></script>
+  <script type="module" src="app/sky.js?v=5"></script>
+  <script type="module" src="app/daycycle.js?v=5"></script>
+  <script type="module" src="app/city-lights.js?v=5"></script>
+  <script type="module" src="app/city-map.js?v=16"></script>
+  <script type="module" src="app/neantis-base.js?v=14"></script>
+  <script type="module" src="app/vehicle.js?v=38"></script>
+  <script type="module" src="app/dispositif1.js?v=17"></script>
+  <script type="module" src="app/explore.js?v=2"></script>
+  <script type="module" src="app/gamepad.js?v=14"></script>
+  <script type="module" src="app/drone-game.js?v=22"></script>
+  <script type="module" src="app/sanctuary-mode.js?v=87"></script>
+  <script type="module" src="app/menu.js?v=3"></script>
+  <script type="module" src="app/keyboard-menu.js?v=3"></script>
+  <script type="module" src="app/laboratoire.js?v=2"></script>
+  <script type="module" src="app/dossier.js?v=2"></script>
+  <script type="module" src="app/tapama.js?v=10"></script>
+  <script type="module" src="app/game-ui.js?v=36"></script>
+  <script type="module" src="app/touch-controls.js?v=3"></script>
+</body>
+
+</html>
