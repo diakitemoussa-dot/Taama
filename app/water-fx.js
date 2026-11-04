@@ -11,7 +11,7 @@
    ========================================================== */
 import * as THREE from 'three';
 import * as L from './water-logic.js?v=1';
-import { detectQuality } from './device-quality.js?v=5';
+import { detectQuality } from './device-quality.js?v=6';
 
 const M = window.MosqueScene;
 const LEVEL = (() => { try { return window.Quality?.level || detectQuality(); } catch (_) { return 'mid'; } })();

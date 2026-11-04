@@ -22,9 +22,9 @@ import {
   SEQUENCES, RADIO, HELP_LEVELS, PUZZLES, ANALYSES,
   PLAYER_NAME, TAPAMA_NAME,
   createSequence, createRadioQueue, helpFor, portraitUrl, safeMood, analysisSummary,
-} from './tapama-core.js';
-import { fillName } from './player-profile.js';
-import { t, translateTree } from './i18n.js';
+} from './tapama-core.js?v=1';
+import { fillName } from './player-profile.js?v=1';
+import { t, translateTree } from './i18n.js?v=1';
 
 const INPUT_LOCK_MS = 280;   // ignore l'appui qui vient d'ouvrir l'écran
 
@@ -156,7 +156,7 @@ function play(seqOrId, opts = {}) {
 
   const hints = h('div', 'tp-d-hints');
   hints.innerHTML = '<span><kbd class="tp-k">Entrée</kbd>Suivant</span>' +
-    '<span><kbd class="tp-k">A</kbd>Manette</span>' +
+    '<span><kbd class="tp-k">✕</kbd>Manette</span>' +
     '<span><kbd class="tp-k">Touche</kbd>Écran tactile</span>' +
     '<span><kbd class="tp-k">Échap</kbd>Passer</span>';
 

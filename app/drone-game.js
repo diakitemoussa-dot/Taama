@@ -3,8 +3,8 @@
    Dépend de window.MosqueScene exposé par mosque-viewer.js.
    ========================================================== */
 import * as THREE from 'three';
-import { mediaUrl, currentBytesPlan } from './device-quality.js?v=5';
-import { t as _t } from './i18n.js';
+import { mediaUrl, currentBytesPlan } from './device-quality.js?v=6';
+import { t as _t } from './i18n.js?v=1';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
@@ -323,7 +323,7 @@ function tickScan(dt){
 const rig = new THREE.Object3D();        // position + orientation (yaw) du drone
 let rigAdded = false;
 
-const DRACO_DECODER = 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/libs/draco/';
+const DRACO_DECODER = 'assets/vendor/three/examples/jsm/libs/draco/';
 
 // Registre des modèles pilotables. yaw = offset d'orientation pour aligner le nez sur le
 // sens de vol (+Z monde). pick = fonction de sélection du clip selon les entrées.
@@ -337,7 +337,7 @@ const MODELS = {
     pick: pickClipDrone,
   },
   vaisseau: {
-    url: `assets/models/vaisseau.glb?v=${Date.now()}`, // cache-buster (ré-exports fréquents)
+    url: `assets/models/vaisseau.glb?v=1`, // version fixe : à incrémenter à chaque ré-export (le cache navigateur sert le reste)
     yaw: -Math.PI / 2,         // nez du modèle sur -X local -> -90° pour aligner le nez sur l'avant du rig (-Z)
     idle: 'Hover',
     spinProps: false,          // hélices déjà en boucle continue dans chaque clip
@@ -644,8 +644,8 @@ function enter(opts){
   if (window.GamepadKit?.connected() && !_gpHintShown){
     _gpHintShown = true;
     window.GamepadKit.toast(launchActive
-      ? '🎮 Sticks = vol · L1 retour personnage · A photo · RB vidéo · Options menu'
-      : '🎮 Manette : sticks = vol · A photo · RB vidéo · Options menu');
+      ? '🎮 Sticks = vol · L1 retour personnage · ✕ photo · R1 vidéo · Options menu'
+      : '🎮 Manette : sticks = vol · ✕ photo · R1 vidéo · Options menu');
   }
 
   // Bouton bascule de modèle (drone <-> vaisseau)

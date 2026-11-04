@@ -22,8 +22,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 import { heroUrl } from './hero.js?v=2';
+import { useMeshopt, loadModel } from './gltf-extras.js?v=1';
 const DRONE_URL = 'assets/models/drone.glb';
-const DRACO_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const DRACO_PATH = 'assets/vendor/three/examples/jsm/libs/draco/';   // décodeurs Draco locaux (plus de dépendance à gstatic)
 const CLIP = 'idle_look';
 const SPEED = 0.55;                     // rad/s : un tour en ~11 s
 const START_ANGLE = 155 * Math.PI / 180;   // 3/4 arrière : sac, drone et gadget visibles
@@ -81,7 +82,8 @@ function loadModels() {
   draco.setDecoderPath(DRACO_PATH);
   const loader = new GLTFLoader();
   loader.setDRACOLoader(draco);
-  const load = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));
+  useMeshopt(loader);
+  const load = (url) => new Promise((res, rej) => loadModel(loader, url, res, undefined, rej));
 
   loadedHero = heroUrl();
   loading = Promise.all([load(loadedHero), load(DRONE_URL)]).then(([player, drone]) => {
@@ -122,12 +124,6 @@ function loadModels() {
   });
   return loading;
 }
-
-window.addEventListener('hero:change', () => {          // Homme / Femme : recharge le modèle affiché
-  if (!V || !host) return;
-  const c = host;
-  loadModels().then(() => { if (host === c && V.ready) { resize(); V.canvas.style.opacity = '1'; } });
-});
 
 function resize() {
   if (!V || !host) return;

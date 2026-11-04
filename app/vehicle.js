@@ -20,7 +20,7 @@ import * as WL from './water-logic.js?v=1';
 
 const M = window.MosqueScene;
 const URL_GLB = 'assets/models/voiture-djenne.glb?v=3';
-const DRACO = 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/libs/draco/';
+const DRACO = 'assets/vendor/three/examples/jsm/libs/draco/';
 
 // stationnement : à l'extérieur de la mosquée (point d'apparition extérieur du sanctuaire + décalage), orientée vers l'est/le large
 const PARK = { x: -21.5, z: 47.0, yaw: Math.PI * 0.5 };
@@ -359,7 +359,7 @@ function toggleLights() {
 }
 function drivingHint() {
   const pad = window.GamepadKit && window.GamepadKit.connected && window.GamepadKit.connected();
-  return `<kbd style="${KBD}">${pad ? 'R3' : 'V'}</kbd>Vue habitacle / extérieure<span style="opacity:.6;margin:0 10px">·</span><kbd style="${KBD}">${pad ? 'LB→RB' : 'L'}</kbd>Phares<span style="opacity:.6;margin:0 10px">·</span><kbd style="${KBD}">H</kbd>Détresse<span style="opacity:.6;margin:0 10px">·</span><kbd style="${KBD}">${pad ? '▲' : 'F'}</kbd>Descendre`;
+  return `<kbd style="${KBD}">${pad ? 'R3' : 'V'}</kbd>Vue habitacle / extérieure<span style="opacity:.6;margin:0 10px">·</span><kbd style="${KBD}">${pad ? 'L1→R1' : 'L'}</kbd>Phares<span style="opacity:.6;margin:0 10px">·</span><kbd style="${KBD}">H</kbd>Détresse<span style="opacity:.6;margin:0 10px">·</span><kbd style="${KBD}">${pad ? '▲' : 'F'}</kbd>Descendre`;
 }
 function promptText(driving) {
   const pad = window.GamepadKit && window.GamepadKit.connected && window.GamepadKit.connected();

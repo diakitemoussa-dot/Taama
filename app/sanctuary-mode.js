@@ -12,6 +12,7 @@ import * as Aim from './aim-system.js?v=6';
 import * as WL from './water-logic.js?v=1';
 import * as DroneAI from './drone-n-ai.js?v=2';
 import { installHeadFade } from './head-fade.js?v=1';
+import { useMeshopt, loadModel } from './gltf-extras.js?v=1';
 
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
@@ -28,7 +29,7 @@ _gltfDir.setDRACOLoader(_draco);
 /* ---------- Personnage joueur (GLB animé, 3e personne) ---------- */
 import { heroUrl } from './hero.js?v=2';
 let _loadedHeroUrl = null;
-const _gltfPlayer   = new GLTFLoader();
+const _gltfPlayer   = useMeshopt(new GLTFLoader());
 
 let _playerRoot          = null;
 let _playerModel         = null;
@@ -1567,23 +1568,13 @@ function _updatePlayerAnimation(dt, moving, running) {
   if (_gadgetShooting) _updateGadgetShot(moving, running);
 }
 
-/* Changement de personnage (Homme / Femme) : retire le modèle chargé pour que le prochain chargement prenne le bon fichier */
-window.addEventListener('hero:change', () => {
-  if (!_playerModel || _loadedHeroUrl === heroUrl()) return;
-  if (_playerRoot) { _playerRoot.parent?.remove(_playerRoot); }
-  _playerRoot = null; _playerModel = null; _playerMixer = null; _playerReady = false; _playerLoading = false;
-  _playerCurrentAction = ''; _playerLowerName = ''; _headFade = null; _gadgetNode = null; _gadgetMuzzle = null; _gadgetTarget = null;
-  for (const k of Object.keys(_playerActions)) delete _playerActions[k];
-  for (const o of [_playerLowerActions, _playerUpperShootActions, _playerAimLowerActions, _playerAimUpperActions]) for (const k of Object.keys(o)) delete o[k];
-  if (active) _loadPlayerModel();
-});
 
 function _loadPlayerModel() {
   if (_playerModel || _playerLoading || !M) return;
   _playerLoading = true;
 
   _loadedHeroUrl = heroUrl();
-  _gltfPlayer.load(_loadedHeroUrl, (gltf) => {
+  loadModel(_gltfPlayer, _loadedHeroUrl, (gltf) => {
     _playerLoading = false;
     if (!M) return;
 
@@ -3013,6 +3004,7 @@ const DRONE_DISC_DUR    = 0.5;      // s — montée douce des disques d'hélice
 
 const _gltfDrone = new GLTFLoader();
 _gltfDrone.setDRACOLoader(_draco);
+useMeshopt(_gltfDrone);
 
 let _dockedDrone        = null;     // { group, model, discs:[{ node, base }] }
 let _dockedDroneLoading = false;
@@ -3193,7 +3185,7 @@ function _retireMainDrone() {
 function _loadSanctuaryDroneN() {
   if (_sanctuaryDroneN || _sanctuaryDroneNLoading || !M) return;
   _sanctuaryDroneNLoading = true;
-  _gltfDrone.load(DRONE_N_GLB_URL, (gltf) => {
+  loadModel(_gltfDrone, DRONE_N_GLB_URL, (gltf) => {
     _sanctuaryDroneNLoading = false;
     _droneNGltf = gltf;
     const model = gltf.scene;
@@ -4958,7 +4950,7 @@ function update(dt) {
       document.querySelector('.sn-scan-result.visible .sn-scan-close')?.click();
     }
     // ○/B : saut hors menu. ✕/X : bascule genoux à terre.
-    if (GP.justPressed('B') && !_sanctuaryMenuOpen() && state === S_FPS) {
+    if (GP.justPressed('B') && !_sanctuaryMenuOpen() && state === S_FPS && !(window.CityMap && window.CityMap.busy)) {   // carte ouverte (ou fermée à l'instant par ○) : pas de saut
       _tryJump();
     }
     if (GP.justPressed('X') && !_sanctuaryMenuOpen() && state === S_FPS) {
@@ -5115,7 +5107,7 @@ function enter() {
   // Aide manette (une fois par session, si une manette est branchée)
   if (window.GamepadKit?.connected() && !_gpHintShown) {
     _gpHintShown = true;
-    window.GamepadKit.toast('🎮 Stick G marcher · L3 courir · ○ sauter · ✕ genoux à terre (bascule) · R2 tir · L1 drone ↔ personnage · Options menu · RB vidéo');
+    window.GamepadKit.toast('🎮 Stick G marcher · L3 courir · ○ sauter · ✕ genoux à terre (bascule) · R2 tir · L1 drone ↔ personnage · Options menu · R1 vidéo');
   }
 
   M.setGameUpdate(update);

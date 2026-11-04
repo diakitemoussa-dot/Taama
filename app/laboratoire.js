@@ -25,9 +25,9 @@
    exportée : voir tests/lab-enigmes.test.mjs.
    ========================================================== */
 
-import { fillName } from './player-profile.js';
-import { mediaUrl } from './device-quality.js?v=5';
-import { t, translateTree } from './i18n.js';
+import { fillName } from './player-profile.js?v=1';
+import { mediaUrl } from './device-quality.js?v=6';
+import { t, translateTree } from './i18n.js?v=1';
 
 /* ==========================================================
    1. LOGIQUE PURE DES ÉNIGMES (aucun DOM)

@@ -19,7 +19,7 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 const M = window.MosqueScene;
 const URL = 'assets/models/neantis-base.glb?v=9';
-const DRACO = 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/libs/draco/';
+const DRACO = 'assets/vendor/three/examples/jsm/libs/draco/';
 const BLUE_HALO = 0x4aa8ff;
 
 const state = { loaded: false, root: null, center: new THREE.Vector3(), anchors: {}, requested: false };

@@ -67,7 +67,7 @@ function init() {
     '<div class="cm-route"><b class="cm-route-name"></b><span class="cm-route-info"></span><button type="button" class="cm-route-x">Effacer</button></div>' +
     '<div class="cm-hint-t">Glisse pour déplacer · pince pour zoomer</div>' +
     '<div class="cm-key"><span class="cm-key-kb">Glisser · molette : déplacer / zoomer · C : me recentrer · M ou Échap : fermer<br></span>' +
-    '<span class="cm-key-pad"><b>🎮</b> stick G déplacer · RT/LT zoom · A recentrer · B fermer</span></div>';
+    '<span class="cm-key-pad"><b>🎮</b> stick G déplacer · R2/L2 zoom · ✕ recentrer · ○ fermer</span></div>';
   const closeBtn = document.createElement('button'); closeBtn.className = 'cm-close'; closeBtn.type = 'button';
   closeBtn.setAttribute('aria-label', 'Réduire la carte'); closeBtn.textContent = '×'; ui.appendChild(closeBtn);
   const tools = document.createElement('div'); tools.className = 'cm-tools';
@@ -90,7 +90,7 @@ function init() {
 
   const ctx = cv.getContext('2d');
   const img = new Image(); let imgReady = false, imgReq = false;
-  let open = false, shown = false, acc = 0, lastKey = '';
+  let closedAt = -1e9, open = false, shown = false, acc = 0, lastKey = '';
   const dir = new THREE.Vector3();
   const view = { ce: 0, cn: 0, half: OPEN_HALF };               // vue de la grande carte (m réels)
   const held = new Set();                                        // flèches / WASD maintenues
@@ -217,7 +217,7 @@ function init() {
   /* ---------- ouverture / fermeture ---------- */
   function setOpen(v) {
     if (v === open) return;
-    open = v;
+    open = v; closedAt = performance.now();
     box.classList.toggle('is-open', open);
     backdrop.classList.toggle('is-on', open);
     box.setAttribute('aria-label', open ? 'Carte de Djenné' : 'Carte de Djenné — cliquer pour agrandir');
@@ -308,17 +308,19 @@ function init() {
   });
 
   /* ---------- clavier ---------- */
+  // La lettre tapée (e.key) et non la position physique (e.code) : sur un clavier AZERTY la touche M est à la place du « ; » (code Semicolon), KeyM y est la virgule.
+  const isKey = (e, l) => (e.key || '').toLowerCase() === l;
   window.addEventListener('keydown', (e) => {
     if (!shown || e.ctrlKey || e.metaKey || e.altKey) return;
     const tg = e.target; if (tg && /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
     if (!open) {
-      if (e.code === 'KeyM') { e.preventDefault(); setOpen(true); }
+      if (isKey(e, 'm')) { e.preventDefault(); setOpen(true); }
       return;
     }
     if (/^F\d+$/.test(e.key)) return;                              // touches de fonction du navigateur
     const c = e.code;
-    if (c === 'KeyM' || c === 'Escape') setOpen(false);
-    else if (c === 'KeyC') recenter();
+    if (isKey(e, 'm') || c === 'Escape') setOpen(false);
+    else if (isKey(e, 'c')) recenter();
     else if (c === 'Equal' || c === 'NumpadAdd' || e.key === '+') zoomAt(0.75);
     else if (c === 'Minus' || c === 'NumpadSubtract' || e.key === '-') zoomAt(1 / 0.75);
     else if (PAN_KEYS[c]) held.add(c);
@@ -556,7 +558,7 @@ function init() {
 
   window.CityMap = {
     open: () => setOpen(true), close: () => setOpen(false), toggle: () => setOpen(!open),
-    get isOpen() { return open; }, get visible() { return shown; },
+    get isOpen() { return open; }, get visible() { return shown; }, get busy() { return open || performance.now() - closedAt < 300; },
     get view() { return { ...view }; }, zoomAt, recenter,
     gameToReal,
     selectPlace: (id) => { if (id !== sel.id) selectPlace(id); }, clearRoute,

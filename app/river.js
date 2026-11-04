@@ -10,7 +10,7 @@
    API : window.River { ready, mesh, setStrength(v) }.
    ========================================================== */
 import * as THREE from 'three';
-import { detectQuality } from './device-quality.js?v=5';
+import { detectQuality } from './device-quality.js?v=6';
 
 const QUALITY = (() => { try { return detectQuality(); } catch (_) { return 'mid'; } })();
 const TEX = QUALITY === 'low' ? 256 : 512;

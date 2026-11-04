@@ -463,3 +463,6 @@
 .tp-ask-btn:focus-visible{ outline: 3px solid #F8F3EA; outline-offset: 3px; }
 .tp-ask-btn .tp-k{ font-size: .72rem; padding: 1px 7px; }
 @media (max-width: 640px){ .tp-ask-btn{ flex: 1; justify-content: center; padding: 12px 10px; } }
+
+/* Écran tactile : les aides « Entrée / Échap / Touche » du dialogue n'ont pas de sens (boutons à l'écran) */
+@media (pointer: coarse){ #tpRoot .tp-d-hints, #tpRoot .tp-btn .tp-k{ display: none; } }
