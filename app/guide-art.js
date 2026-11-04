@@ -10,10 +10,10 @@
    ========================================================== */
 
 import * as TL from './touch-layout.js?v=1';
-import { UI_LABELS } from './guide-content.js?v=27';
+import { UI_LABELS } from './guide-content.js?v=28';
 import { t } from './i18n.js?v=1';
 
-import { ICO, icon, PAD_COL, PAD_PS, PAD_NAME, padBtn, lang } from './guide-icons.js?v=27';
+import { ICO, icon, PAD_COL, PAD_PS, PAD_NAME, padBtn, lang } from './guide-icons.js?v=28';
 export { icon, padBtn };
 const keys = (k) => (Array.isArray(k) ? k : k[lang()] || k.fr);
 

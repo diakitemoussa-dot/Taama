@@ -3,20 +3,20 @@
    Chargé à l'ouverture seulement (import dynamique depuis guide-ui.js).
    ========================================================== */
 
-import { PAGES, UI } from './guide-content.js?v=27';
-import * as A from './guide-art.js?v=27';
+import { PAGES, UI } from './guide-content.js?v=28';
+import * as A from './guide-art.js?v=28';
 import { t, getLang, onLangChange } from './i18n.js?v=1';
-import { core as K } from './guide-ui.js?v=27';
+import { core as K } from './guide-ui.js?v=28';
 
 if (!document.getElementById('gdCss2')) {
   const l = document.createElement('link');
-  l.id = 'gdCss2'; l.rel = 'stylesheet'; l.href = 'styles/guide-screen.css?v=27';
+  l.id = 'gdCss2'; l.rel = 'stylesheet'; l.href = 'styles/guide-screen.css?v=28';
   document.head.appendChild(l);
   await new Promise((r) => { l.onload = r; l.onerror = r; setTimeout(r, 3500); });
 }
 const { $, esc, emit, look, saveS, flags, hideHint, closeHelp, reset, padOn, still, isTouchUi, paintHelpBtn, coachRoot } = K;
 let root = null, isOpen = false, idx = 0, pop = null, speakOn = false, padRun = false, padNav = false, viewMode = null;
-import * as LG from './guide-logic.js?v=27';
+import * as LG from './guide-logic.js?v=28';
 
 /* ==========================================================
    ÉCRAN « COMMENT JOUER »
@@ -69,12 +69,18 @@ function fitRot() {
   root.classList.toggle('gd-portrait', isTouchUi() && h > w * 1.05 && Math.min(w, h) < 600);
 }
 
+/** Le film (GIF) est sauté en économie de données, réseau lent ou « animations réduites » : on garde alors le dessin léger. */
+function filmOk() {
+  const c = navigator.connection || {};
+  return !still() && !c.saveData && !/(^|-)2g$/.test(c.effectiveType || '');
+}
+
 function render() {
   if (!root) return;
   const p = PAGES[idx], m = viewMode || K.mode;
   look(root); fitRot();
   const card = $('.gd-card', root);
-  $('.gd-sc', root).innerHTML = A.scene(p.scene || p.id);
+  $('.gd-sc', root).innerHTML = idx === 0 && filmOk() ? '<img class="gd-film" src="assets/images/guide-comment-jouer.gif?v=1" alt="" decoding="async">' : A.scene(p.scene || p.id);   // page 1 : le film Motion « Comment jouer » (GIF léger) ; sinon le petit dessin animé
   $('.gd-dv', root).innerHTML = A.device(p, m);
   $('.gd-t', root).innerHTML = `<span class="gd-ti">${A.icon(p.ico)}</span>${esc(t(p.title))}`;
   $('.gd-l', root).textContent = t(p.line[m]);

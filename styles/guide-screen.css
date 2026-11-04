@@ -276,3 +276,5 @@
 .gd-xb svg { width: 60%; height: 60%; } .gd-xb .gd-fing { left: 30%; top: 35%; width: 100%; height: 100%; animation: gdTap 3s ease-in-out infinite; }
 .gd-menu b { display: block; height: 14%; border-radius: 8px; background: #cdb99a; position: relative; } .gd-menu b.sel { background: var(--gold); box-shadow: 0 0 0 3px rgba(249, 213, 139, .5); }
 .gd-menu .gd-fing { left: 62%; top: 30%; width: 9cqw; height: 9cqw; animation: gdTap 3s ease-in-out infinite; }
+
+.gd-film { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 14px; background: #2a1f33; }
