@@ -11,16 +11,16 @@
    Chargé à la demande par app/guide.js.
    ========================================================== */
 
-import * as LG from './guide-logic.js?v=26';
-import { PAGES, OBJECTIVES, UI } from './guide-content.js?v=26';
-import * as A from './guide-icons.js?v=26';
+import * as LG from './guide-logic.js?v=27';
+import { PAGES, OBJECTIVES, UI } from './guide-content.js?v=27';
+import * as A from './guide-icons.js?v=27';
 import { t, getLang, onLangChange } from './i18n.js?v=1';
 import { fillName } from './player-profile.js?v=1';
 
 /* ---------- feuille de style (chargée avec le module) ---------- */
 if (!document.getElementById('gdCss')) {
   const l = document.createElement('link');
-  l.id = 'gdCss'; l.rel = 'stylesheet'; l.href = 'styles/guide.css?v=26';
+  l.id = 'gdCss'; l.rel = 'stylesheet'; l.href = 'styles/guide.css?v=27';
   document.head.appendChild(l);
   await new Promise((r) => { l.onload = r; l.onerror = r; setTimeout(r, 3500); });
 }
@@ -94,7 +94,7 @@ detect();
    ÉCRAN « COMMENT JOUER » : module séparé (guide-screen.js), chargé seulement à l'ouverture
    ========================================================== */
 let scr = null;
-const loadScreen = () => scr || (scr = import('./guide-screen.js?v=26').then((m) => (scr = Promise.resolve(m.default), (screenMod = m.default))));
+const loadScreen = () => scr || (scr = import('./guide-screen.js?v=27').then((m) => (scr = Promise.resolve(m.default), (screenMod = m.default))));
 const setOpen = (b) => { isOpen = b; };
 const open = (topic) => loadScreen().then((s) => s.open(topic));
 const start = () => loadScreen().then((s) => s.start());
@@ -119,7 +119,7 @@ let artMod = null, artP = null;
 const screenCss = () => {
   if (document.getElementById('gdCss2')) return Promise.resolve();
   const l = document.createElement('link');
-  l.id = 'gdCss2'; l.rel = 'stylesheet'; l.href = 'styles/guide-screen.css?v=26';
+  l.id = 'gdCss2'; l.rel = 'stylesheet'; l.href = 'styles/guide-screen.css?v=27';
   document.head.appendChild(l);
   return new Promise((r) => { l.onload = r; l.onerror = r; setTimeout(r, 3500); });
 };
@@ -131,7 +131,7 @@ const lowData = () => {
     return !!(g.saveData || c.saveData || /^(slow-)?2g$/.test(c.effectiveType || '') || ls('taama.saveData') === '1');
   } catch (_) { return false; }
 };
-const loadArt = () => artP || (artP = Promise.all([import('./guide-art.js?v=26'), screenCss()]).then(([m]) => (artMod = m)));
+const loadArt = () => artP || (artP = Promise.all([import('./guide-art.js?v=27'), screenCss()]).then(([m]) => (artMod = m)));
 
 const coachRoot = () => {
   if (cRoot) return cRoot;
@@ -201,9 +201,12 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') acts.add('skip');                         // dialogue : passer
   if (/^r$/i.test(e.key)) droneAt = Date.now();               // essai de décollage : « utilisé » seulement quand le drone vole VRAIMENT (R ne fait rien tant que le drone du sac n'est pas chargé)
   if (e.key === '+' || e.key === '-' || e.key === '−') acts.add('R');
+  if (/^(l|h)$/i.test(e.key)) acts.add('lights');
 }, true);
 window.addEventListener('wheel', () => acts.add('R'), { passive: true, capture: true });
+let lastDown = null;
 window.addEventListener('pointerdown', (e) => {
+  if (!(cRoot && cRoot.contains(e.target))) lastDown = { el: e.target, t: performance.now() };   // dernier appui du joueur (hors bulle) : sert à ranger la bulle quand il agit dessus
   const c = e.target && e.target.closest ? e.target.closest.bind(e.target) : () => null;
   if (c('.tc-stick, [data-key="move"], #snStick')) mark('move');
   if (c('.tc-look')) mark('look');
@@ -239,8 +242,8 @@ const HINTS = [
     st('dclimb', (w, m) => (m === 'touch' ? tcEl('left') : q('#dgStickL')), 'L'), st('dturn', (w, m) => (m === 'touch' ? tcEl('left') : q('#dgStickL')), 'L'),
     st('dmove', (w, m) => (m === 'touch' ? tcEl('right') : q('#dgStickR')), 'R'), st('dside', (w, m) => (m === 'touch' ? tcEl('right') : q('#dgStickR')), 'R'),
     st('photo', (w, m) => (m === 'touch' ? tcEl('photo') : q('#dgPhoto')), 'photo'), st('dback', (w, m) => (m === 'touch' ? tcEl('back') : q('#dgQuit')), 'back')] },
-  { id: 'car', when: (w) => w.car, steps: [st('car', (w, m) => (m === 'touch' ? tcEl('gas') : null)), st('caraux', (w, m) => (m === 'touch' ? tcEl('lights') : null))] },
-  { id: 'swim', when: (w) => w.swim, steps: [st('swim')] },
+  { id: 'car', when: (w) => w.car, steps: [st('car', (w, m) => (m === 'touch' ? tcEl('gas') : null), null, () => acts.has('move')), st('caraux', (w, m) => (m === 'touch' ? tcEl('lights') : null), null, () => acts.has('lights'))] },
+  { id: 'swim', when: (w) => w.swim, steps: [st('swim', null, null, () => acts.has('move'))] },
   { id: 'circle', when: (w) => w.foot && ls('taama.dispositif1') === '1' && ls('taama.lab1') !== 'done' && near(w.pos, -175, -220, 70), steps: [st('circle', null, null, (w) => w.ctx === 'lab')] },
   { id: 'gadget', when: (w) => w.foot && ls('taama.gadget') === '1', steps: [st('gadget', (w, m) => (m === 'touch' ? tcEl('aim') : null), null, (w) => w.aiming)] },
   { id: 'drone', essential: 1, fast: 1, when: (w) => w.foot && ls('taama.dispositif1') !== '1' && !droneUsed && !takingOff(), steps: [st('drone', (w, m) => (m === 'touch' ? tcEl('drone') : null))] },
@@ -266,7 +269,7 @@ const stepPage = () => PAGES.find((x) => x.id === cur.h.steps[cur.i].p);
 function showHint(h) {
   const c = coachRoot();
   look(c);
-  cur = { h, i: 0, t: 0, last: 0, ready: false }; curId = h.id;
+  cur = { h, i: 0, t: 0, last: 0, ready: false, t0: performance.now() }; curId = h.id;
   S = LG.markSeen(S, h.id); saveS(); acts.clear();
   emit('guide:hint', { id: h.id });
   $('.gc-ring', c).style.opacity = 0; $('.gc-arrow', c).style.opacity = 0;
@@ -304,7 +307,7 @@ function renderStep() {
 }
 function nextStep(byButton) {
   if (!cur) return;
-  acts.clear(); cur.t = 0; cur.last = 0;
+  acts.clear(); cur.t = 0; cur.last = 0; cur.t0 = performance.now();
   if (cur.i + 1 >= cur.h.steps.length) { const ctx = !!cur.h.ctx; hideHint(); lastEnd = performance.now(); if (ctx) lastEnd = 0; return; }
   cur.i++; cur.ready = false;
   $('.gc-bub', cRoot).classList.remove('on');
@@ -359,6 +362,10 @@ function tick() {
   placeHelpBtn(w);
   if (cur) {
     const h = cur.h, s = h.steps[cur.i];
+    { // règle générale : le joueur agit sur la cible (clic/toucher) ou valide dans l'écran affiché (Entrée, ✕, clic) → la bulle disparaît tout de suite
+      const tg0 = s.t ? s.t(w, mode) : null;
+      const hit = !!(lastDown && cur.t0 && lastDown.t > cur.t0 && ((tg0 && tg0.contains && tg0.contains(lastDown.el)) || (h.ctx && w.ctx === h.ctx)));
+      if (!s.act && !s.done && !cur.force && (hit || (h.ctx && acts.has('next') && cur.t > 0.6))) { if (cur.i + 1 < h.steps.length) nextStep(); else { hideHint(!!h.ctx); lastEnd = h.ctx ? 0 : performance.now(); } return; } }
     if (s.done && s.done(w)) { if (cur.i + 1 < h.steps.length) nextStep(); else { hideHint(); lastEnd = performance.now(); } return; }
     cur.off = h.when(w) || cur.force ? 0 : (cur.off || 0) + 1;                            // l'interface a disparu (ex. le dialogue est fini) : la démo s'efface aussitôt
     if (cur.off >= (h.ctx ? 1 : 3)) { hideHint(!!h.ctx); lastEnd = h.ctx ? 0 : performance.now(); return; }
@@ -442,6 +449,7 @@ function padHelp() {
   if (Math.hypot(s.lx - b.lx, s.ly - b.ly) > 0.5) { mark('move'); acts.add('L'); }
   if (Math.hypot(s.rx - b.rx, s.ry - b.ry) > 0.5) { mark('look'); acts.add('R'); }
   if (R.justPressed('A')) { acts.add('photo'); acts.add('next'); }
+  if (R.justPressed('RB')) acts.add('lights');
   if (R.justPressed('B')) acts.add('skip');
   if (R.down('LB')) { acts.add('back'); droneAt = Date.now(); }
   if (isOpen) return;
